@@ -73,7 +73,7 @@ end
 
 local function create(class, props)
     local obj = Instance.new(class)
-    for k, v in pairs(props) do if k ~= "Parent" then obj[k] = v end end
+    for k, v in pairs(props) do if k \~= "Parent" then obj[k] = v end end
     obj.Parent = props.Parent
     return obj
 end
@@ -136,7 +136,7 @@ local function CreatePage(name)
 end
 
 local function AddToggle(pageName, labelText, default, callback)
-    local active = (ToggleStates[labelText] ~= nil) and ToggleStates[labelText] or default
+    local active = (ToggleStates[labelText] \~= nil) and ToggleStates[labelText] or default
     local Row = create("Frame", {Size = UDim2.new(0.92, 0, 0, 50), BackgroundColor3 = COLORS.RowBG, BackgroundTransparency = 0.5, Parent = Pages[pageName]})
     create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = Row})
     create("UIStroke", {Color = COLORS.Border, Thickness = 1, Transparency = 0.8, Parent = Row})
@@ -201,7 +201,7 @@ end
 local function getNearestPlayer(character, hrp)
     local nearest,dist=nil,math.huge
     for _,p in pairs(Players:GetPlayers()) do
-        if p~=lp and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+        if p\~=lp and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
             local d=(p.Character.HumanoidRootPart.Position-hrp.Position).Magnitude
             if d<dist then dist=d; nearest=p.Character end
         end
@@ -250,70 +250,174 @@ local function disableSafeFollow()
 end
 
 -------------------------------------------------------------------------
--- FLOAT MODULE
+-- IMPROVED FLOAT MODULE (SMOOTH & STABLE)
 -------------------------------------------------------------------------
 local Float = {
-    Enabled=false, gui=nil, btn=nil, attachment=nil, vectorForce=nil,
-    connection=nil, charConn=nil, lastMassUpdate=0, cachedMass=0,
-    floatHeight=5, floatSpeed=22, damping=14, massCacheTime=2, deadzone=0.15,
+    Enabled = false,
+    gui = nil,
+    btn = nil,
+    
+    verticalAttachment = nil,
+    verticalForce = nil,
+    horizontalAlign = nil,
+    
+    connection = nil,
+    charConn = nil,
+    
+    TargetHeight       = 5.4,
+    RiseAggression     = 19,
+    FallAggression     = 14,
+    VerticalDamping    = 17,
+    HorizontalStiffness = 40,
+    HorizontalDamping   = 22,
+    Deadzone           = 0.32,
+    MassRecalcInterval = 1.6,
+    
+    cachedMass         = 100,
+    lastMassUpdate     = 0,
 }
 
-local function floatGetMass()
-    local char=lp.Character; if not char then return 0 end
-    local mass=0
-    for _,part in ipairs(char:GetDescendants()) do
-        if part:IsA("BasePart") or part:IsA("MeshPart") then mass=mass+part:GetMass() end
+local function getCharacterMass(char)
+    if not char then return 100 end
+    local mass = 0
+    for _, obj in ipairs(char:GetDescendants()) do
+        if obj:IsA("BasePart") or obj:IsA("MeshPart") then
+            mass += obj:GetMass()
+        end
     end
-    return mass
+    return math.max(mass, 30)
 end
 
-local function floatSetup()
-    local char=lp.Character; if not char then return end
-    local hrp=char:FindFirstChild("HumanoidRootPart"); if not hrp then return end
-    if Float.vectorForce then pcall(function() Float.vectorForce:Destroy() end) end
-    if Float.attachment then pcall(function() Float.attachment:Destroy() end) end
-    Float.attachment=Instance.new("Attachment"); Float.attachment.Name="FloatAttachment"; Float.attachment.Parent=hrp
-    Float.vectorForce=Instance.new("VectorForce"); Float.vectorForce.Name="FloatForce"
-    Float.vectorForce.Attachment0=Float.attachment; Float.vectorForce.ApplyAtCenterOfMass=true
-    Float.vectorForce.RelativeTo=Enum.ActuatorRelativeTo.World; Float.vectorForce.Force=Vector3.new(0,0,0); Float.vectorForce.Parent=hrp
+local function setupFloatPhysics(char)
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    pcall(function()
+        if Float.verticalForce then Float.verticalForce:Destroy() end
+        if Float.verticalAttachment then Float.verticalAttachment:Destroy() end
+        if Float.horizontalAlign then Float.horizontalAlign:Destroy() end
+    end)
+
+    Float.verticalAttachment = Instance.new("Attachment")
+    Float.verticalAttachment.Name = "FloatVert"
+    Float.verticalAttachment.Parent = hrp
+
+    Float.verticalForce = Instance.new("VectorForce")
+    Float.verticalForce.Name = "FloatUpForce"
+    Float.verticalForce.Attachment0 = Float.verticalAttachment
+    Float.verticalForce.ApplyAtCenterOfMass = true
+    Float.verticalForce.RelativeTo = Enum.ActuatorRelativeTo.World
+    Float.verticalForce.Force = Vector3.zero
+    Float.verticalForce.Parent = hrp
+
+    local horizAttach = Instance.new("Attachment")
+    horizAttach.Name = "FloatHoriz"
+    horizAttach.Parent = hrp
+
+    Float.horizontalAlign = Instance.new("AlignPosition")
+    Float.horizontalAlign.Attachment0    = horizAttach
+    Float.horizontalAlign.MaxForce       = 1200000
+    Float.horizontalAlign.Responsiveness = Float.HorizontalStiffness
+    Float.horizontalAlign.MaxVelocity    = 40
+    Float.horizontalAlign.Position       = hrp.Position
+    Float.horizontalAlign.Parent         = hrp
 end
 
 local function startFloat()
     if Float.Enabled then return end
-    local char=lp.Character; if not char then return end
-    local hrp=char:FindFirstChild("HumanoidRootPart"); local hum=char:FindFirstChild("Humanoid")
+
+    local char = lp.Character
+    if not char then return end
+
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChild("Humanoid")
     if not hrp or not hum then return end
-    Float.Enabled=true; floatSetup()
-    Float.cachedMass=floatGetMass(); Float.lastMassUpdate=tick()
-    hum.JumpPower=0
+
+    Float.Enabled = true
+    setupFloatPhysics(char)
+
+    Float.cachedMass = getCharacterMass(char)
+    Float.lastMassUpdate = tick()
+
+    hum.JumpPower = 0
+
     if Float.connection then Float.connection:Disconnect() end
-    Float.connection=RunService.Heartbeat:Connect(function()
+
+    Float.connection = RunService.Heartbeat:Connect(function()
         if not Float.Enabled then return end
-        local c=lp.Character; if not c then return end
-        local rp=c:FindFirstChild("HumanoidRootPart"); if not rp then return end
-        if not Float.vectorForce or not Float.vectorForce.Parent then return end
-        local now=tick()
-        if now-Float.lastMassUpdate>Float.massCacheTime then Float.cachedMass=floatGetMass(); Float.lastMassUpdate=now end
-        local rayParams=RaycastParams.new(); rayParams.FilterDescendantsInstances={c}; rayParams.FilterType=Enum.RaycastFilterType.Exclude
-        local rayResult=Workspace:Raycast(rp.Position,Vector3.new(0,-500,0),rayParams)
-        local groundY=rayResult and rayResult.Position.Y or (rp.Position.Y-Float.floatHeight)
-        local targetY=groundY+Float.floatHeight
-        local diff=targetY-rp.Position.Y; local velocityY=rp.AssemblyLinearVelocity.Y
-        if math.abs(diff)<Float.deadzone and math.abs(velocityY)<0.4 then diff=0; velocityY=0 end
-        local rawForce=Float.cachedMass*(Float.floatSpeed*diff-Float.damping*velocityY+Workspace.Gravity)
-        local clampedForce=math.clamp(rawForce,-Float.cachedMass*200,Float.cachedMass*200)
-        Float.vectorForce.Force=Vector3.new(0,clampedForce,0)
+
+        local char = lp.Character
+        if not char then return end
+
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if not root or not Float.verticalForce or not Float.verticalForce.Parent then return end
+
+        local now = tick()
+        if now - Float.lastMassUpdate > Float.MassRecalcInterval then
+            Float.cachedMass = getCharacterMass(char)
+            Float.lastMassUpdate = now
+        end
+
+        local rayParams = RaycastParams.new()
+        rayParams.FilterDescendantsInstances = {char}
+        rayParams.FilterType = Enum.RaycastFilterType.Exclude
+        rayParams.IgnoreWater = true
+
+        local rayResult = workspace:Raycast(root.Position + Vector3.new(0, 3, 0), Vector3.new(0, -650, 0), rayParams)
+        local groundY = rayResult and (rayResult.Position.Y + 0.12) or (root.Position.Y - Float.TargetHeight)
+
+        local targetY = groundY + Float.TargetHeight
+        local currentY = root.Position.Y
+        local diffY = targetY - currentY
+
+        local velY = root.AssemblyLinearVelocity.Y
+
+        if math.abs(diffY) < Float.Deadzone and math.abs(velY) < 0.7 then
+            diffY = 0
+            velY = 0
+        end
+
+        local correction =
+            (diffY > 0 and Float.RiseAggression or Float.FallAggression) * diffY
+            - Float.VerticalDamping * velY
+            + workspace.Gravity * Float.cachedMass
+
+        local verticalForce = Float.cachedMass * correction
+        verticalForce = math.clamp(verticalForce, -Float.cachedMass * 240, Float.cachedMass * 240)
+
+        Float.verticalForce.Force = Vector3.new(0, verticalForce, 0)
+
+        if Float.horizontalAlign then
+            Float.horizontalAlign.Position = Vector3.new(root.Position.X, targetY, root.Position.Z)
+        end
     end)
 end
 
 local function stopFloat()
     if not Float.Enabled then return end
-    Float.Enabled=false
-    if Float.connection then Float.connection:Disconnect(); Float.connection=nil end
-    if Float.vectorForce then pcall(function() Float.vectorForce:Destroy() end); Float.vectorForce=nil end
-    if Float.attachment then pcall(function() Float.attachment:Destroy() end); Float.attachment=nil end
-    local char=lp.Character; if char then local hum=char:FindFirstChild("Humanoid"); if hum then hum.JumpPower=50 end end
-    if Float.btn then Float.btn.Text="FLOAT: OFF"; Float.btn.BackgroundColor3=Color3.fromRGB(43,160,235) end
+    Float.Enabled = false
+
+    if Float.connection then
+        Float.connection:Disconnect()
+        Float.connection = nil
+    end
+
+    pcall(function()
+        if Float.verticalForce then Float.verticalForce:Destroy() end
+        if Float.verticalAttachment then Float.verticalAttachment:Destroy() end
+        if Float.horizontalAlign then Float.horizontalAlign:Destroy() end
+    end)
+
+    local char = lp.Character
+    if char then
+        local hum = char:FindFirstChild("Humanoid")
+        if hum then hum.JumpPower = 50 end
+    end
+
+    if Float.btn then
+        Float.btn.Text = "FLOAT: OFF"
+        Float.btn.BackgroundColor3 = Color3.fromRGB(43,160,235)
+    end
 end
 
 local function createFloatUI()
@@ -452,7 +556,7 @@ local function scanSinglePlot(plot)
     for _,podium in ipairs(podiums:GetChildren()) do
         if podium:IsA("Model") and podium:FindFirstChild("Base") then
             local animalName="Unknown"; local spawn=podium.Base:FindFirstChild("Spawn")
-            if spawn then for _,child in ipairs(spawn:GetChildren()) do if child:IsA("Model") and child.Name~="PromptAttachment" then animalName=child.Name; break end end end
+            if spawn then for _,child in ipairs(spawn:GetChildren()) do if child:IsA("Model") and child.Name\~="PromptAttachment" then animalName=child.Name; break end end end
             table.insert(allAnimalsCache,{name=animalName,plot=plot.Name,slot=podium.Name,worldPosition=podium:GetPivot().Position,uid=plot.Name.."_"..podium.Name})
         end
     end
@@ -718,7 +822,7 @@ end
 local function disableNoAnim()
     if not NoAnim.Enabled then return end; NoAnim.Enabled=false
     if NoAnim.CharacterConnections.ca then NoAnim.CharacterConnections.ca:Disconnect(); NoAnim.CharacterConnections.ca=nil end
-    for char,conn in pairs(NoAnim.CharacterConnections) do if char~="ca" then conn:Disconnect(); NoAnim.CharacterConnections[char]=nil end end
+    for char,conn in pairs(NoAnim.CharacterConnections) do if char\~="ca" then conn:Disconnect(); NoAnim.CharacterConnections[char]=nil end end
 end
 
 -------------------------------------------------------------------------
@@ -806,7 +910,7 @@ local function enableSpeedCustomizer()
     end)
     SpeedCustomizer.JumpConn=UserInputService.JumpRequest:Connect(function()
         if not SpeedCustomizer.Enabled then return end
-        if SpeedCustomizer.character and SpeedCustomizer.hum and SpeedCustomizer.hum.FloorMaterial~=Enum.Material.Air then
+        if SpeedCustomizer.character and SpeedCustomizer.hum and SpeedCustomizer.hum.FloorMaterial\~=Enum.Material.Air then
             if SpeedCustomizer.JumpValue and SpeedCustomizer.hrp then SpeedCustomizer.hrp.AssemblyLinearVelocity=Vector3.new(SpeedCustomizer.hrp.AssemblyLinearVelocity.X,SpeedCustomizer.JumpValue,SpeedCustomizer.hrp.AssemblyLinearVelocity.Z) end
         end
     end)
@@ -854,7 +958,7 @@ autoLoad()
 -------------------------------------------------------------------------
 local batConn=nil
 AddToggle("Combat","Auto Bat",false,function(v)
-    if v then batConn=RunService.Heartbeat:Connect(function() local c=lp.Character; local b=getWeapon(); if b and c and c:FindFirstChild("Humanoid") then if b.Parent~=c then c.Humanoid:EquipTool(b) end; b:Activate() end end)
+    if v then batConn=RunService.Heartbeat:Connect(function() local c=lp.Character; local b=getWeapon(); if b and c and c:FindFirstChild("Humanoid") then if b.Parent\~=c then c.Humanoid:EquipTool(b) end; b:Activate() end end)
     else if batConn then batConn:Disconnect(); batConn=nil end end
 end)
 
@@ -866,7 +970,7 @@ AddToggle("Combat","Melee Aimbot",false,function(active)
         Cebo.Circle=create("Part",{Shape="Cylinder",Material="Neon",Size=Vector3.new(0.05,14.5,14.5),Color=Color3.new(1,0,0),CanCollide=false,Massless=true,Parent=Workspace}); create("Weld",{Part0=hrp,Part1=Cebo.Circle,C0=CFrame.new(0,-1,0)*CFrame.Angles(0,0,math.rad(90)),Parent=Cebo.Circle})
         Cebo.Conn=RunService.RenderStepped:Connect(function()
             local target,dmin=nil,7.25
-            for _,p in ipairs(Players:GetPlayers()) do if p~=lp and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then local d=(p.Character.HumanoidRootPart.Position-hrp.Position).Magnitude; if d<=dmin then target,dmin=p.Character.HumanoidRootPart,d end end end
+            for _,p in ipairs(Players:GetPlayers()) do if p\~=lp and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then local d=(p.Character.HumanoidRootPart.Position-hrp.Position).Magnitude; if d<=dmin then target,dmin=p.Character.HumanoidRootPart,d end end end
             if target then char.Humanoid.AutoRotate,Cebo.Align.Enabled,Cebo.Align.CFrame=false,true,CFrame.lookAt(hrp.Position,Vector3.new(target.Position.X,hrp.Position.Y,target.Position.Z)); local t=char:FindFirstChild("Bat") or char:FindFirstChild("Medusa"); if t then t:Activate() end
             else Cebo.Align.Enabled,char.Humanoid.AutoRotate=false,true end
         end)
