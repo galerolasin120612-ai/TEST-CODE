@@ -162,7 +162,7 @@ TabButtons["Combat"].TextColor3 = COLORS.TextActive
 Pages["Combat"].Visible = true
 
 -------------------------------------------------------------------------
--- SAFE FOLLOW MODULE
+-- SAFE FOLLOW MODULE (LOCK PLAYER)
 -------------------------------------------------------------------------
 local SafeFollow = {Enabled=false,Locked=false,FOLLOW_DISTANCE=6,lastMove=0,gui=nil,btn=nil,targetChar=nil,heartbeatConn=nil,charAddedConn=nil}
 
@@ -250,23 +250,25 @@ local function disableSafeFollow()
 end
 
 -------------------------------------------------------------------------
--- FAST FLOAT (INTEGRATED IN IVO DUELS)
+-- FAST FLOAT MODULE (WITH BUTTON LIKE LOCK PLAYER)
 -------------------------------------------------------------------------
 local FastFloat = {
     Enabled = false,
+    isFloating = false,
     FloatHeight = 8,
     FloatSpeed = 250,
     Damping = 65,
     Deadzone = 0.15,
     
+    -- UI Elements (kagaya ng Lock Player)
+    gui = nil,
+    btn = nil,
+    
     -- Physics objects
     attachment = nil,
     vectorForce = nil,
     connection = nil,
-    charAddedConn = nil,
-    
-    -- State
-    isFloating = false
+    charAddedConn = nil
 }
 
 local function getCharacterMass(char)
@@ -334,6 +336,12 @@ local function startFloating()
         local forceY = mass * (FastFloat.FloatSpeed * diff - FastFloat.Damping * velocityY + workspace.Gravity)
         FastFloat.vectorForce.Force = Vector3.new(0, forceY, 0)
     end)
+    
+    -- Update button text (same style as Lock Player)
+    if FastFloat.btn then
+        FastFloat.btn.Text = "FLOAT: ON"
+        FastFloat.btn.BackgroundColor3 = Color3.fromRGB(255, 65, 65)  -- Red pag ON (same as Lock Player)
+    end
 end
 
 local function stopFloating()
@@ -353,20 +361,102 @@ local function stopFloating()
         FastFloat.attachment:Destroy()
         FastFloat.attachment = nil
     end
+    
+    -- Update button text (same style as Lock Player)
+    if FastFloat.btn then
+        FastFloat.btn.Text = "FLOAT: OFF"
+        FastFloat.btn.BackgroundColor3 = Color3.fromRGB(43, 160, 235)  -- Blue pag OFF (same as Lock Player)
+    end
+end
+
+local function createFastFloatUI()
+    FastFloat.gui = Instance.new("ScreenGui")
+    FastFloat.gui.Name = "FastFloatUI"
+    FastFloat.gui.ResetOnSpawn = false
+    FastFloat.gui.Enabled = false
+    FastFloat.gui.Parent = CoreGui
+    
+    FastFloat.btn = Instance.new("TextButton")
+    FastFloat.btn.Size = UDim2.new(0, 140, 0, 45)  -- Medyo mas mahaba para sa "FLOAT: ON/OFF"
+    FastFloat.btn.Position = UDim2.new(0.5, -70, 0.7, 0)  -- Medyo mas mataas konti sa Lock Player
+    FastFloat.btn.Text = "FLOAT: OFF"
+    FastFloat.btn.Font = Enum.Font.GothamBold
+    FastFloat.btn.TextSize = 16
+    FastFloat.btn.TextColor3 = Color3.new(1, 1, 1)
+    FastFloat.btn.BackgroundColor3 = Color3.fromRGB(43, 160, 235)  -- Blue pag OFF (same as Lock Player)
+    FastFloat.btn.AutoButtonColor = true
+    FastFloat.btn.Parent = FastFloat.gui
+    
+    Instance.new("UICorner", FastFloat.btn).CornerRadius = UDim.new(0, 8)
+    
+    -- Dragging functionality (exactly like Lock Player)
+    local dragging, dragInput, dragStart, startPos
+    
+    FastFloat.btn.InputBegan:Connect(function(input)
+        if UILocked then return end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = FastFloat.btn.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    
+    FastFloat.btn.InputChanged:Connect(function(input)
+        if UILocked then
+            dragging = false
+            return
+        end
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if UILocked then
+            dragging = false
+            return
+        end
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            FastFloat.btn.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+    
+    -- Toggle functionality (click button to toggle float on/off)
+    FastFloat.btn.MouseButton1Click:Connect(function()
+        if not FastFloat.Enabled then return end  -- Only works if enabled in GUI
+        
+        if FastFloat.isFloating then
+            stopFloating()
+        else
+            startFloating()
+        end
+    end)
 end
 
 local function enableFastFloat()
     if FastFloat.Enabled then return end
     FastFloat.Enabled = true
     
-    -- Auto-start floating pag na-enable
-    task.wait(0.1)
-    startFloating()
+    if not FastFloat.gui then
+        createFastFloatUI()
+    end
+    FastFloat.gui.Enabled = true
     
     -- Handle character respawn
     FastFloat.charAddedConn = lp.CharacterAdded:Connect(function()
         task.wait(1)
-        if FastFloat.Enabled then
+        if FastFloat.Enabled and FastFloat.isFloating then
             task.wait(0.5)
             stopFloating()
             startFloating()
@@ -380,13 +470,17 @@ local function disableFastFloat()
     stopFloating()
     FastFloat.Enabled = false
     
+    if FastFloat.gui then
+        FastFloat.gui.Enabled = false
+    end
+    
     if FastFloat.charAddedConn then
         FastFloat.charAddedConn:Disconnect()
         FastFloat.charAddedConn = nil
     end
 end
 
--- F keybind for Fast Float
+-- Optional: F keybind (same as Lock Player may keybind din)
 UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
     if input.KeyCode == Enum.KeyCode.F and FastFloat.Enabled then
@@ -1027,6 +1121,7 @@ do
         TweenService:Create(LockTglBg2,TweenInfo.new(0.2),{BackgroundColor3=locked and COLORS.Border or Color3.fromRGB(40,45,55)}):Play()
         TweenService:Create(LockCircle2,TweenInfo.new(0.2),{Position=locked and UDim2.new(0.55,0,0.1,0) or UDim2.new(0.1,0,0.1,0)}):Play()
         if SafeFollow.btn then SafeFollow.btn.Active=not locked end
+        if FastFloat.btn then FastFloat.btn.Active=not locked end  -- Add this line for Fast Float
         if SpeedCustomizer.SpeedUI and SpeedCustomizer.SpeedUI.MainFrame then SpeedCustomizer.SpeedUI.MainFrame.Draggable=not locked end
         autoSave()
     end
@@ -1044,6 +1139,7 @@ do
         MainFrame.Position=UDim2.new(0,200,0,150)
         ToggleIcon.Position=UDim2.new(0,50,0,300)
         aw_panel.Position=UDim2.new(0,800,0,400)
+        if FastFloat.btn then FastFloat.btn.Position=UDim2.new(0.5,-70,0.7,0) end  -- Reset Fast Float button position
         ResetBtn.BackgroundColor3=Color3.fromRGB(50,200,50); ResetBtn.Text="DONE!"
         task.delay(1,function() ResetBtn.BackgroundColor3=Color3.fromRGB(200,50,50); ResetBtn.Text="RESET" end)
         autoSave()
