@@ -52,9 +52,6 @@ local function autoSave()
         if data.Frame then
             savePos(name.."_Tab", data.Frame)
         end
-        if data.MiniBtn then
-            savePos(name.."_Mini", data.MiniBtn)
-        end
     end
     
     pcall(writefile, CONFIG_FILE, table.concat(lines, "\n"))
@@ -85,9 +82,6 @@ local function autoLoad()
         if data.Frame then
             applyPos(name.."_Tab", data.Frame)
         end
-        if data.MiniBtn then
-            applyPos(name.."_Mini", data.MiniBtn)
-        end
     end
 end
 
@@ -98,11 +92,11 @@ local function create(class, props)
     return obj
 end
 
--- HAMBURGER MENU ICON (☰) - pinalitan mula sa "I"
+-- HAMBURGER MENU ICON (☰)
 ToggleIcon = create("TextButton", {
     Size = UDim2.new(0, 45, 0, 45), Position = UDim2.new(0.05, 0, 0.2, 0),
-    BackgroundColor3 = COLORS.MainBG, Text = "☰", TextColor3 = COLORS.Border, -- ☰ ito!
-    Font = "GothamBold", TextSize = 30, -- Mas malaking text para sa icon
+    BackgroundColor3 = COLORS.MainBG, Text = "☰", TextColor3 = COLORS.Border,
+    Font = "GothamBold", TextSize = 30,
     Parent = ScreenGui
 })
 create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = ToggleIcon})
@@ -184,43 +178,43 @@ TabButtons["Combat"].TextColor3 = COLORS.TextActive
 Pages["Combat"].Visible = true
 
 -------------------------------------------------------------------------
--- GUI TAB CREATOR (with Mini Button for ON/OFF status)
+-- GUI TAB CREATOR (may Up Arrow/Up Triangle lang)
 -------------------------------------------------------------------------
-local function createExpandableTab(name, size, defaultVisible)
+local function createGuiTab(name, size, defaultVisible)
     -- Create screen gui para sa tab
     local gui = Instance.new("ScreenGui")
     gui.Name = name.."_GUI"
     gui.ResetOnSpawn = false
     gui.Parent = CoreGui
     
-    -- MAIN BIG GUI (lalabas kapag expanded)
-    local mainFrame = Instance.new("Frame")
-    mainFrame.Name = name.."Frame"
-    mainFrame.Size = size
-    mainFrame.Position = UDim2.new(0.8, 0, 0.3, 0) -- Sa kanan
-    mainFrame.BackgroundColor3 = Color3.fromRGB(20, 25, 30)
-    mainFrame.BackgroundTransparency = 0.1
-    mainFrame.BorderSizePixel = 0
-    mainFrame.Visible = defaultVisible or false
-    mainFrame.Parent = gui
+    -- Main frame
+    local frame = Instance.new("Frame")
+    frame.Name = name.."Frame"
+    frame.Size = size
+    frame.Position = UDim2.new(0.8, 0, 0.3, 0) -- Sa kanan
+    frame.BackgroundColor3 = Color3.fromRGB(20, 25, 30)
+    frame.BackgroundTransparency = 0.1
+    frame.BorderSizePixel = 0
+    frame.Visible = defaultVisible or false
+    frame.Parent = gui
     
     -- Rounded corners
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, 10)
-    corner.Parent = mainFrame
+    corner.Parent = frame
     
     -- White outline
     local stroke = Instance.new("UIStroke")
     stroke.Color = Color3.fromRGB(255, 255, 255)
     stroke.Thickness = 2
-    stroke.Parent = mainFrame
+    stroke.Parent = frame
     
-    -- Title bar (may ▲)
+    -- Title bar
     local titleBar = Instance.new("Frame")
     titleBar.Size = UDim2.new(1, 0, 0, 35)
     titleBar.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
     titleBar.BorderSizePixel = 0
-    titleBar.Parent = mainFrame
+    titleBar.Parent = frame
     
     local titleCorner = Instance.new("UICorner")
     titleCorner.CornerRadius = UDim.new(0, 10)
@@ -238,36 +232,12 @@ local function createExpandableTab(name, size, defaultVisible)
     titleText.Font = Enum.Font.GothamBold
     titleText.Parent = titleBar
     
-    -- MINI BUTTON (lilitaw kapag nakatago ang main GUI)
-    local miniBtn = Instance.new("TextButton")
-    miniBtn.Name = name.."_Mini"
-    miniBtn.Size = UDim2.new(0, 140, 0, 30)
-    miniBtn.Position = mainFrame.Position + UDim2.new(0, 0, 0, 40) -- Sa ilalim ng main frame
-    miniBtn.BackgroundColor3 = Color3.fromRGB(20, 25, 30)
-    miniBtn.BackgroundTransparency = 0.1
-    miniBtn.Text = "☰ "..name.." (OFF)" -- May hamburger icon sa mini button
-    miniBtn.TextColor3 = Color3.new(1,1,1)
-    miniBtn.TextSize = 12
-    miniBtn.Font = Enum.Font.GothamBold
-    miniBtn.Visible = not (defaultVisible or false) -- Kabaliktaran ng main frame
-    miniBtn.Parent = gui
-    
-    -- Mini button styling
-    local miniCorner = Instance.new("UICorner")
-    miniCorner.CornerRadius = UDim.new(0, 6)
-    miniCorner.Parent = miniBtn
-    
-    local miniStroke = Instance.new("UIStroke")
-    miniStroke.Color = Color3.fromRGB(255, 255, 255)
-    miniStroke.Thickness = 1.5
-    miniStroke.Parent = miniBtn
-    
-    -- Toggle button (▲) sa loob ng main GUI
+    -- UP ARROW / TRIANGLE button (para itago ang GUI)
     local toggleBtn = Instance.new("TextButton")
     toggleBtn.Size = UDim2.new(0, 30, 0, 30)
     toggleBtn.Position = UDim2.new(1, -35, 0, 2.5)
     toggleBtn.BackgroundTransparency = 1
-    toggleBtn.Text = "▲"
+    toggleBtn.Text = "▲" -- Up Arrow / Triangle
     toggleBtn.TextColor3 = Color3.new(1,1,1)
     toggleBtn.TextSize = 20
     toggleBtn.Font = Enum.Font.GothamBold
@@ -279,103 +249,29 @@ local function createExpandableTab(name, size, defaultVisible)
     content.Size = UDim2.new(1, -20, 1, -55)
     content.Position = UDim2.new(0, 10, 0, 45)
     content.BackgroundTransparency = 1
-    content.Parent = mainFrame
+    content.Parent = frame
     
-    -- Variables para sa status
-    local isExpanded = mainFrame.Visible
-    local isEnabled = false
-    
-    -- Function to update mini button text
-    local function updateMiniButton()
-        local status = isEnabled and "ON" or "OFF"
-        miniBtn.Text = "☰ "..name.." ("..status..")" -- May hamburger icon
-        
-        -- Change mini button color based on status
-        if isEnabled then
-            miniBtn.BackgroundColor3 = Color3.fromRGB(0, 80, 0) -- Dark green pag ON
-            miniBtn.TextColor3 = Color3.fromRGB(0, 255, 0) -- Green text
-        else
-            miniBtn.BackgroundColor3 = Color3.fromRGB(20, 25, 30) -- Dark gray pag OFF
-            miniBtn.TextColor3 = Color3.fromRGB(255, 255, 255) -- White text
-        end
-    end
-    
-    -- Toggle function
-    local function setExpanded(expanded)
-        isExpanded = expanded
-        mainFrame.Visible = expanded
-        miniBtn.Visible = not expanded
-        toggleBtn.Text = expanded and "▲" or "▼"
-        
-        -- Update mini button position to follow main frame
-        if not expanded then
-            miniBtn.Position = UDim2.new(mainFrame.Position.X.Scale, mainFrame.Position.X.Offset, 
-                                         mainFrame.Position.Y.Scale, mainFrame.Position.Y.Offset + mainFrame.Size.Y.Offset + 5)
-        end
-        autoSave()
-    end
-    
-    -- Toggle button functionality (▲ sa loob)
+    -- Toggle function (itago ang GUI)
     toggleBtn.MouseButton1Click:Connect(function()
-        setExpanded(false)
+        frame.Visible = false
+        -- Kapag pinindot ang ▲, magtatago ang GUI
+        -- Walang lilitaw na iba, ganun lang dati
     end)
     
-    -- Mini button functionality (para palitawin ang main GUI)
-    miniBtn.MouseButton1Click:Connect(function()
-        setExpanded(true)
-    end)
-    
-    -- Make draggable (both main frame and mini button)
+    -- Make draggable
     local dragging = false
     local dragStart, startPos
-    local currentDragTarget = nil
     
-    local function startDrag(input, obj)
-        if UILocked then return end
-        dragging = true
-        dragStart = input.Position
-        startPos = obj.Position
-        currentDragTarget = obj
-    end
-    
-    local function updateDrag(input)
-        if not dragging or not currentDragTarget then return end
-        local delta = input.Position - dragStart
-        currentDragTarget.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, 
-                                                startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        
-        -- If dragging main frame, update mini button position
-        if currentDragTarget == mainFrame and miniBtn.Visible then
-            miniBtn.Position = UDim2.new(mainFrame.Position.X.Scale, mainFrame.Position.X.Offset,
-                                         mainFrame.Position.Y.Scale, mainFrame.Position.Y.Offset + mainFrame.Size.Y.Offset + 5)
-        end
-    end
-    
-    local function endDrag()
-        dragging = false
-        currentDragTarget = nil
-        autoSave()
-    end
-    
-    -- Drag for main frame
     titleBar.InputBegan:Connect(function(input)
+        if UILocked then return end
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            startDrag(input, mainFrame)
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
             input.Changed:Connect(function()
                 if input.UserInputState == Enum.UserInputState.End then
-                    endDrag()
-                end
-            end)
-        end
-    end)
-    
-    -- Drag for mini button
-    miniBtn.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            startDrag(input, miniBtn)
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    endDrag()
+                    dragging = false
+                    autoSave()
                 end
             end)
         end
@@ -384,24 +280,18 @@ local function createExpandableTab(name, size, defaultVisible)
     UserInputService.InputChanged:Connect(function(input)
         if UILocked then dragging = false; return end
         if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            updateDrag(input)
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, 
+                                        startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
     
     -- Save sa table
     GuiTabs[name] = {
         Gui = gui,
-        Frame = mainFrame,
-        MiniBtn = miniBtn,
+        Frame = frame,
         Content = content,
-        IsExpanded = isExpanded,
-        IsEnabled = isEnabled,
-        SetExpanded = setExpanded,
-        UpdateMini = updateMiniButton,
-        SetEnabled = function(state)
-            isEnabled = state
-            updateMiniButton()
-        end
+        ToggleBtn = toggleBtn
     }
     
     return GuiTabs[name]
@@ -940,8 +830,8 @@ local function setupSpeedCharacter(char)
     SpeedCustomizer.hum = char:WaitForChild("Humanoid")
 end
 
--- Create Speed Customizer Tab
-local speedTab = createExpandableTab("Speed Customizer", UDim2.new(0, 260, 0, 320), false)
+-- Create Speed Customizer Tab (with Up Arrow)
+local speedTab = createGuiTab("Speed Customizer", UDim2.new(0, 260, 0, 320), false)
 SpeedCustomizer.Tab = speedTab
 
 -- Add content sa Speed Customizer tab
@@ -1051,7 +941,6 @@ setupSpeedTab()
 local function enableSpeedCustomizer()
     if SpeedCustomizer.Enabled then return end
     SpeedCustomizer.Enabled = true
-    if speedTab then speedTab.SetEnabled(true) end
     
     if lp.Character then setupSpeedCharacter(lp.Character) end
     lp.CharacterAdded:Connect(setupSpeedCharacter)
@@ -1084,7 +973,6 @@ end
 local function disableSpeedCustomizer()
     if not SpeedCustomizer.Enabled then return end
     SpeedCustomizer.Enabled = false
-    if speedTab then speedTab.SetEnabled(false) end
     if SpeedCustomizer.HeartbeatConn then
         SpeedCustomizer.HeartbeatConn:Disconnect()
         SpeedCustomizer.HeartbeatConn = nil
@@ -1096,9 +984,9 @@ local function disableSpeedCustomizer()
 end
 
 -------------------------------------------------------------------------
--- AUTO WALK TAB
+-- AUTO WALK TAB (with Up Arrow)
 -------------------------------------------------------------------------
-local walkTab = createExpandableTab("Auto Walk", UDim2.new(0, 260, 0, 320), false)
+local walkTab = createGuiTab("Auto Walk", UDim2.new(0, 260, 0, 320), false)
 AutoWalk.Tab = walkTab
 
 -- Setup Auto Walk tab content
@@ -1250,7 +1138,6 @@ local function setupWalkTab()
         aw_stop()
         AutoWalk.Active = true
         AutoWalk.Mode = "LEFT"
-        if walkTab then walkTab.SetEnabled(true) end
         task.spawn(function() aw_runPath(AutoWalk.Path1) end)
     end)
     
@@ -1259,7 +1146,6 @@ local function setupWalkTab()
         aw_stop()
         AutoWalk.Active = true
         AutoWalk.Mode = "RIGHT"
-        if walkTab then walkTab.SetEnabled(true) end
         task.spawn(function() aw_runPath(AutoWalk.Path2) end)
     end)
     
@@ -1268,7 +1154,6 @@ local function setupWalkTab()
         aw_stop()
         AutoWalk.Active = true
         AutoWalk.Mode = "AUTO"
-        if walkTab then walkTab.SetEnabled(true) end
         task.spawn(function()
             while AutoWalk.Active and AutoWalk.Mode == "AUTO" do
                 local char = lp.Character
@@ -1289,13 +1174,11 @@ setupWalkTab()
 
 local function enableAutoWalk()
     AutoWalk.Enabled = true
-    if walkTab then walkTab.SetEnabled(true) end
 end
 
 local function disableAutoWalk()
     aw_stop()
     AutoWalk.Enabled = false
-    if walkTab then walkTab.SetEnabled(false) end
 end
 
 -------------------------------------------------------------------------
@@ -1352,7 +1235,7 @@ AddToggle("Combat","Speed Customizer",false,function(v)
     if v then 
         enableSpeedCustomizer()
         if speedTab then 
-            speedTab.SetExpanded(true) -- Auto expand kapag in-on
+            speedTab.Frame.Visible = true -- Ipakita ang GUI kapag in-on
         end
     else 
         disableSpeedCustomizer()
@@ -1366,7 +1249,7 @@ AddToggle("Combat","Auto Walk",false,function(v)
     if v then 
         enableAutoWalk()
         if walkTab then 
-            walkTab.SetExpanded(true) -- Auto expand kapag in-on
+            walkTab.Frame.Visible = true -- Ipakita ang GUI kapag in-on
         end
     else 
         disableAutoWalk()
@@ -1507,9 +1390,6 @@ do
             if data.Frame then
                 data.Frame.Position = UDim2.new(0.8, 0, 0.3, 0)
             end
-            if data.MiniBtn and not data.Frame.Visible then
-                data.MiniBtn.Position = data.Frame.Position + UDim2.new(0, 0, 0, data.Frame.Size.Y.Offset + 5)
-            end
         end
         
         ResetBtn.BackgroundColor3=Color3.fromRGB(50,200,50); ResetBtn.Text="DONE!"
@@ -1546,8 +1426,7 @@ end
 drag(MainFrame); drag(ToggleIcon)
 ToggleIcon.MouseButton1Click:Connect(function() MainFrame.Visible=not MainFrame.Visible end)
 
-print("🚀 Ivo Duels Script Loaded - HAMBURGER MENU EDITION! 🍔")
+print("🚀 Ivo Duels Script Loaded!")
 print("✓ Menu Icon: ☰ (Hamburger)")
 print("✓ Speed Customizer: Jump = 50, Down Speed = 100")
-print("✓ May mini button na may ON/OFF status")
-print("✓ Pindutin ang ▲ para itago, mini button para ipakita ulit")
+print("✓ May ▲ button sa GUI para itago")
