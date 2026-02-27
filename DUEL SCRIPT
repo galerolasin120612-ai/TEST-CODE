@@ -178,7 +178,40 @@ TabButtons["Combat"].TextColor3 = COLORS.TextActive
 Pages["Combat"].Visible = true
 
 -------------------------------------------------------------------------
--- GUI TAB CREATOR (may Up Arrow/Up Triangle lang)
+-- DRAG FUNCTION (para sa lahat ng GUI)
+-------------------------------------------------------------------------
+local function makeDraggable(frame, dragHandle)
+    local dragging = false
+    local dragStart, startPos
+    local handle = dragHandle or frame
+    
+    handle.InputBegan:Connect(function(input)
+        if UILocked then return end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                    autoSave()
+                end
+            end)
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if UILocked then dragging = false; return end
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, 
+                                        startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
+
+-------------------------------------------------------------------------
+-- GUI TAB CREATOR (may Up Arrow/Up Triangle at draggable)
 -------------------------------------------------------------------------
 local function createGuiTab(name, size, defaultVisible)
     -- Create screen gui para sa tab
@@ -209,7 +242,7 @@ local function createGuiTab(name, size, defaultVisible)
     stroke.Thickness = 2
     stroke.Parent = frame
     
-    -- Title bar
+    -- Title bar (ito ang pang-drag)
     local titleBar = Instance.new("Frame")
     titleBar.Size = UDim2.new(1, 0, 0, 35)
     titleBar.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
@@ -254,37 +287,10 @@ local function createGuiTab(name, size, defaultVisible)
     -- Toggle function (itago ang GUI)
     toggleBtn.MouseButton1Click:Connect(function()
         frame.Visible = false
-        -- Kapag pinindot ang ▲, magtatago ang GUI
-        -- Walang lilitaw na iba, ganun lang dati
     end)
     
-    -- Make draggable
-    local dragging = false
-    local dragStart, startPos
-    
-    titleBar.InputBegan:Connect(function(input)
-        if UILocked then return end
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = input.Position
-            startPos = frame.Position
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                    autoSave()
-                end
-            end)
-        end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(input)
-        if UILocked then dragging = false; return end
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local delta = input.Position - dragStart
-            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, 
-                                        startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
-    end)
+    -- Make draggable using title bar
+    makeDraggable(frame, titleBar)
     
     -- Save sa table
     GuiTabs[name] = {
@@ -830,7 +836,7 @@ local function setupSpeedCharacter(char)
     SpeedCustomizer.hum = char:WaitForChild("Humanoid")
 end
 
--- Create Speed Customizer Tab (with Up Arrow)
+-- Create Speed Customizer Tab (with Up Arrow at draggable)
 local speedTab = createGuiTab("Speed Customizer", UDim2.new(0, 260, 0, 320), false)
 SpeedCustomizer.Tab = speedTab
 
@@ -984,7 +990,7 @@ local function disableSpeedCustomizer()
 end
 
 -------------------------------------------------------------------------
--- AUTO WALK TAB (with Up Arrow)
+-- AUTO WALK TAB (with Up Arrow at draggable)
 -------------------------------------------------------------------------
 local walkTab = createGuiTab("Auto Walk", UDim2.new(0, 260, 0, 320), false)
 AutoWalk.Tab = walkTab
@@ -1399,7 +1405,7 @@ do
 end
 
 -------------------------------------------------------------------------
--- DRAG + SAVE
+-- DRAG + SAVE (para sa MainFrame at ToggleIcon)
 -------------------------------------------------------------------------
 local function drag(f)
     local d,ds,sp
@@ -1430,3 +1436,4 @@ print("🚀 Ivo Duels Script Loaded!")
 print("✓ Menu Icon: ☰ (Hamburger)")
 print("✓ Speed Customizer: Jump = 50, Down Speed = 100")
 print("✓ May ▲ button sa GUI para itago")
+print("✓ Draggable na lahat ng GUI!")
