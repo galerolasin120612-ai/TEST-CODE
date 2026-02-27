@@ -23,6 +23,9 @@ local COLORS = {
     RowBG = Color3.fromRGB(18, 24, 35)
 }
 
+local DARK_BLUE = Color3.fromRGB(12, 28, 95)
+local DARK_BLUE2 = Color3.fromRGB(10, 22, 80)
+
 local CONFIG_FILE = "IvoDuels_config.txt"
 local ToggleStates = {}
 local UILocked = false
@@ -76,6 +79,30 @@ local function create(class, props)
     return obj
 end
 
+-- Reusable drag for floating buttons
+local function addBtnDrag(btn)
+    local dragging, dragInput, dragStart, startPos
+    btn.InputBegan:Connect(function(input)
+        if UILocked then return end
+        if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+            dragging=true; dragStart=input.Position; startPos=btn.Position
+            input.Changed:Connect(function() if input.UserInputState==Enum.UserInputState.End then dragging=false end end)
+        end
+    end)
+    btn.InputChanged:Connect(function(input)
+        if UILocked then dragging=false; return end
+        if input.UserInputType==Enum.UserInputType.MouseMovement or input.UserInputType==Enum.UserInputType.Touch then dragInput=input end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if UILocked then dragging=false; return end
+        if input==dragInput and dragging then
+            local delta=input.Position-dragStart
+            btn.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+delta.X,startPos.Y.Scale,startPos.Y.Offset+delta.Y)
+        end
+    end)
+end
+
+-- ToggleIcon = Hamburger Menu ☰
 ToggleIcon = create("TextButton", {
     Size = UDim2.new(0, 48, 0, 48), Position = UDim2.new(0.05, 0, 0.2, 0),
     BackgroundColor3 = Color3.fromRGB(15, 20, 30), Text = "☰", TextColor3 = Color3.fromRGB(255, 255, 255),
@@ -166,52 +193,40 @@ TabButtons["Combat"].TextColor3 = COLORS.TextActive
 Pages["Combat"].Visible = true
 
 -------------------------------------------------------------------------
--- SAFE FOLLOW
+-- 🎯 LOCK IN (Safe Follow) — Dark Blue
 -------------------------------------------------------------------------
 local SafeFollow = {Enabled=false,Locked=false,FOLLOW_DISTANCE=6,lastMove=0,gui=nil,btn=nil,targetChar=nil,heartbeatConn=nil,charAddedConn=nil}
 
 local function createSafeFollowUI()
-    SafeFollow.gui = Instance.new("ScreenGui"); SafeFollow.gui.Name="SafeFollowUI"; SafeFollow.gui.ResetOnSpawn=false; SafeFollow.gui.Enabled=false; SafeFollow.gui.Parent=CoreGui
+    SafeFollow.gui = Instance.new("ScreenGui")
+    SafeFollow.gui.Name="SafeFollowUI"; SafeFollow.gui.ResetOnSpawn=false
+    SafeFollow.gui.Enabled=false; SafeFollow.gui.Parent=CoreGui
+
     SafeFollow.btn = Instance.new("TextButton")
-    SafeFollow.btn.Size = UDim2.new(0, 130, 0, 40)
-    SafeFollow.btn.Position = UDim2.new(0.5, -65, 0.8, 0)
-    SafeFollow.btn.Text = "LOCK: OFF"
+    SafeFollow.btn.Size = UDim2.new(0, 148, 0, 46)
+    SafeFollow.btn.Position = UDim2.new(0.5, -74, 0.8, 0)
+    SafeFollow.btn.Text = "🔒 LOCK: OFF"
     SafeFollow.btn.Font = Enum.Font.GothamBold
-    SafeFollow.btn.TextSize = 14
+    SafeFollow.btn.TextSize = 13
     SafeFollow.btn.TextColor3 = Color3.new(1,1,1)
-    SafeFollow.btn.BackgroundColor3 = Color3.fromRGB(43,160,235)
+    SafeFollow.btn.BackgroundColor3 = DARK_BLUE
     SafeFollow.btn.AutoButtonColor = false
     SafeFollow.btn.Parent = SafeFollow.gui
-    Instance.new("UICorner", SafeFollow.btn).CornerRadius = UDim.new(0,8)
-    local st = Instance.new("UIStroke", SafeFollow.btn); st.Color = Color3.fromRGB(200,200,200); st.Thickness = 1.5
-    
-    local function addDragToBtn(btn)
-        local dragging, dragInput, dragStart, startPos
-        btn.InputBegan:Connect(function(input)
-            if UILocked then return end
-            if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
-                dragging=true; dragStart=input.Position; startPos=btn.Position
-                input.Changed:Connect(function() if input.UserInputState==Enum.UserInputState.End then dragging=false end end)
-            end
-        end)
-        btn.InputChanged:Connect(function(input)
-            if UILocked then dragging=false; return end
-            if input.UserInputType==Enum.UserInputType.MouseMovement or input.UserInputType==Enum.UserInputType.Touch then dragInput=input end
-        end)
-        UserInputService.InputChanged:Connect(function(input)
-            if UILocked then dragging=false; return end
-            if input==dragInput and dragging then
-                local delta=input.Position-dragStart
-                btn.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+delta.X,startPos.Y.Scale,startPos.Y.Offset+delta.Y)
-            end
-        end)
-    end
-    addDragToBtn(SafeFollow.btn)
-    
+    Instance.new("UICorner", SafeFollow.btn).CornerRadius = UDim.new(0, 10)
+    local st = Instance.new("UIStroke", SafeFollow.btn)
+    st.Color = Color3.fromRGB(40, 80, 220); st.Thickness = 2
+
+    addBtnDrag(SafeFollow.btn)
+
     SafeFollow.btn.MouseButton1Click:Connect(function()
-        SafeFollow.Locked=not SafeFollow.Locked
-        if SafeFollow.Locked then SafeFollow.btn.Text="LOCK: ON"; SafeFollow.btn.BackgroundColor3=Color3.fromRGB(255,65,65)
-        else SafeFollow.btn.Text="LOCK: OFF"; SafeFollow.btn.BackgroundColor3=Color3.fromRGB(43,160,235) end
+        SafeFollow.Locked = not SafeFollow.Locked
+        if SafeFollow.Locked then
+            SafeFollow.btn.Text = "🔒 LOCK: ON"
+            TweenService:Create(SafeFollow.btn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(200, 40, 40)}):Play()
+        else
+            SafeFollow.btn.Text = "🔒 LOCK: OFF"
+            TweenService:Create(SafeFollow.btn, TweenInfo.new(0.15), {BackgroundColor3 = DARK_BLUE}):Play()
+        end
     end)
 end
 
@@ -251,7 +266,7 @@ local function enableSafeFollow()
     if SafeFollow.Enabled then return end; SafeFollow.Enabled=true
     if not SafeFollow.gui then createSafeFollowUI() end; SafeFollow.gui.Enabled=true
     SafeFollow.Locked=false
-    if SafeFollow.btn then SafeFollow.btn.Text="LOCK: OFF"; SafeFollow.btn.BackgroundColor3=Color3.fromRGB(43,160,235) end
+    if SafeFollow.btn then SafeFollow.btn.Text="🔒 LOCK: OFF"; SafeFollow.btn.BackgroundColor3=DARK_BLUE end
     startSafeFollow()
     SafeFollow.charAddedConn=lp.CharacterAdded:Connect(function(c) local hum=c:WaitForChild("Humanoid",5); if hum then hum.AutoRotate=true end end)
     if lp.Character and lp.Character:FindFirstChild("Humanoid") then lp.Character.Humanoid.AutoRotate=true end
@@ -267,126 +282,102 @@ local function disableSafeFollow()
 end
 
 -------------------------------------------------------------------------
--- AUTO STEAL (with progress bar sa HUD)
+-- AUTO STEAL
 -------------------------------------------------------------------------
-local AutoSteal = {
-    Enabled = false,
-    Cooldown = 0.2,
-    HoldDuration = 0.5,
-    LoopCoroutine = nil,
-    IsStealing = false,
-    StealProgress = 0,
-    CurrentTarget = nil
-}
+local AutoSteal = {Enabled=false,Cooldown=0.2,HoldDuration=0.5,LoopCoroutine=nil,IsStealing=false,StealProgress=0,CurrentTarget=nil}
 
-local function autoStealGetCharacter()
-    return lp.Character or lp.CharacterAdded:Wait()
-end
-
-local function autoStealGetHRP()
-    local char = autoStealGetCharacter()
-    return char:WaitForChild("HumanoidRootPart", 5)
-end
-
+local function autoStealGetCharacter() return lp.Character or lp.CharacterAdded:Wait() end
+local function autoStealGetHRP() local char=autoStealGetCharacter(); return char:WaitForChild("HumanoidRootPart",5) end
 local function autoStealGetPromptPart(prompt)
-    local parent = prompt.Parent
+    local parent=prompt.Parent
     if parent:IsA("BasePart") then return parent end
     if parent:IsA("Model") then return parent.PrimaryPart or parent:FindFirstChildWhichIsA("BasePart") end
     if parent:IsA("Attachment") then return parent.Parent end
-    return parent:FindFirstChildWhichIsA("BasePart", true)
+    return parent:FindFirstChildWhichIsA("BasePart",true)
 end
-
 local function autoStealFindNearestPrompt(hrp)
-    local nearestPrompt = nil
-    local minDist = math.huge
-    local plots = Workspace:FindFirstChild("Plots")
-    if not plots then return nil end
-    
-    for _, desc in pairs(plots:GetDescendants()) do
-        if desc:IsA("ProximityPrompt") and desc.Enabled and desc.ActionText == "Steal" then
-            local part = autoStealGetPromptPart(desc)
+    local nearestPrompt,minDist=nil,math.huge
+    local plots=Workspace:FindFirstChild("Plots"); if not plots then return nil end
+    for _,desc in pairs(plots:GetDescendants()) do
+        if desc:IsA("ProximityPrompt") and desc.Enabled and desc.ActionText=="Steal" then
+            local part=autoStealGetPromptPart(desc)
             if part then
-                local dist = (hrp.Position - part.Position).Magnitude
-                if dist < minDist then
-                    minDist = dist
-                    nearestPrompt = desc
-                end
+                local dist=(hrp.Position-part.Position).Magnitude
+                if dist<minDist then minDist=dist; nearestPrompt=desc end
             end
         end
     end
     return nearestPrompt
 end
-
 local function autoStealTriggerPrompt(prompt)
     if not prompt or not prompt:IsDescendantOf(Workspace) then return end
-    
-    AutoSteal.IsStealing = true
-    AutoSteal.StealProgress = 0
-    
-    prompt.MaxActivationDistance = 9e9
-    prompt.RequiresLineOfSight = false
-    prompt.ClickablePrompt = true
-    
-    local startTime = tick()
-    while tick() - startTime < AutoSteal.HoldDuration and AutoSteal.Enabled do
-        AutoSteal.StealProgress = (tick() - startTime) / AutoSteal.HoldDuration
-        task.wait(0.03)
+    AutoSteal.IsStealing=true; AutoSteal.StealProgress=0
+    prompt.MaxActivationDistance=9e9; prompt.RequiresLineOfSight=false; prompt.ClickablePrompt=true
+    local startTime=tick()
+    while tick()-startTime<AutoSteal.HoldDuration and AutoSteal.Enabled do
+        AutoSteal.StealProgress=(tick()-startTime)/AutoSteal.HoldDuration; task.wait(0.03)
     end
-    
     if AutoSteal.Enabled then
-        local usedFire = pcall(function()
-            fireproximityprompt(prompt, 9e9, AutoSteal.HoldDuration)
-        end)
-        
-        if not usedFire then
-            pcall(function()
-                prompt:InputHoldBegin()
-                task.wait(AutoSteal.HoldDuration)
-                prompt:InputHoldEnd()
-            end)
-        end
+        local usedFire=pcall(function() fireproximityprompt(prompt,9e9,AutoSteal.HoldDuration) end)
+        if not usedFire then pcall(function() prompt:InputHoldBegin(); task.wait(AutoSteal.HoldDuration); prompt:InputHoldEnd() end) end
     end
-    
-    AutoSteal.StealProgress = 1
-    task.wait(0.1)
-    AutoSteal.IsStealing = false
-    AutoSteal.StealProgress = 0
+    AutoSteal.StealProgress=1; task.wait(0.1); AutoSteal.IsStealing=false; AutoSteal.StealProgress=0
 end
-
 local function autoStealLoop()
     while AutoSteal.Enabled do
-        local hrp = autoStealGetHRP()
-        if hrp then
-            local prompt = autoStealFindNearestPrompt(hrp)
-            if prompt then
-                autoStealTriggerPrompt(prompt)
-            end
-        else
-            lp.CharacterAdded:Wait()
-        end
+        local hrp=autoStealGetHRP()
+        if hrp then local prompt=autoStealFindNearestPrompt(hrp); if prompt then autoStealTriggerPrompt(prompt) end
+        else lp.CharacterAdded:Wait() end
         task.wait(AutoSteal.Cooldown)
     end
 end
-
 local function autoStealSetEnabled(state)
-    if state == AutoSteal.Enabled then return end
-    
-    AutoSteal.Enabled = state
-    AutoSteal.IsStealing = false
-    AutoSteal.StealProgress = 0
-    
-    if AutoSteal.Enabled then
-        AutoSteal.LoopCoroutine = coroutine.create(autoStealLoop)
-        coroutine.resume(AutoSteal.LoopCoroutine)
-    else
-        AutoSteal.LoopCoroutine = nil
-    end
+    if state==AutoSteal.Enabled then return end
+    AutoSteal.Enabled=state; AutoSteal.IsStealing=false; AutoSteal.StealProgress=0
+    if AutoSteal.Enabled then AutoSteal.LoopCoroutine=coroutine.create(autoStealLoop); coroutine.resume(AutoSteal.LoopCoroutine)
+    else AutoSteal.LoopCoroutine=nil end
 end
 
 -------------------------------------------------------------------------
--- SPIN
+-- 🌀 SPIN + SpinGUI (Dark Blue — same style as Lock In)
 -------------------------------------------------------------------------
-local Spin={Enabled=false,Speed=30,Conn=nil}
+local Spin = {Enabled=false, Active=false, Speed=30, Conn=nil}
+local SpinGUI = {Gui=nil, Btn=nil}
+
+local function createSpinGUI()
+    SpinGUI.Gui = Instance.new("ScreenGui")
+    SpinGUI.Gui.Name = "SpinGUI"
+    SpinGUI.Gui.ResetOnSpawn = false
+    SpinGUI.Gui.Enabled = false
+    SpinGUI.Gui.Parent = CoreGui
+
+    SpinGUI.Btn = Instance.new("TextButton")
+    SpinGUI.Btn.Size = UDim2.new(0, 148, 0, 46)
+    SpinGUI.Btn.Position = UDim2.new(0.5, -74, 0.7, 0)
+    SpinGUI.Btn.BackgroundColor3 = DARK_BLUE2
+    SpinGUI.Btn.Text = "🌀 SPIN: OFF"
+    SpinGUI.Btn.TextColor3 = Color3.new(1,1,1)
+    SpinGUI.Btn.Font = Enum.Font.GothamBold
+    SpinGUI.Btn.TextSize = 13
+    SpinGUI.Btn.AutoButtonColor = false
+    SpinGUI.Btn.Parent = SpinGUI.Gui
+    Instance.new("UICorner", SpinGUI.Btn).CornerRadius = UDim.new(0, 10)
+    local ss = Instance.new("UIStroke", SpinGUI.Btn)
+    ss.Color = Color3.fromRGB(30, 70, 210); ss.Thickness = 2
+
+    addBtnDrag(SpinGUI.Btn)
+
+    SpinGUI.Btn.MouseButton1Click:Connect(function()
+        Spin.Active = not Spin.Active
+        if Spin.Active then
+            SpinGUI.Btn.Text = "🌀 SPIN: ON"
+            TweenService:Create(SpinGUI.Btn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(60, 20, 160)}):Play()
+        else
+            SpinGUI.Btn.Text = "🌀 SPIN: OFF"
+            TweenService:Create(SpinGUI.Btn, TweenInfo.new(0.15), {BackgroundColor3 = DARK_BLUE2}):Play()
+        end
+    end)
+end
 
 local function setupSpin(char)
     local hrp=char:WaitForChild("HumanoidRootPart")
@@ -399,19 +390,29 @@ lp.CharacterAdded:Connect(function(char) setupSpin(char) end)
 if lp.Character then setupSpin(lp.Character) end
 
 local function enableSpin()
+    if not SpinGUI.Gui then createSpinGUI() end
+    SpinGUI.Gui.Enabled = true
+    Spin.Active = false
+    SpinGUI.Btn.Text = "🌀 SPIN: OFF"
+    SpinGUI.Btn.BackgroundColor3 = DARK_BLUE2
     if Spin.Conn then Spin.Conn:Disconnect() end
     Spin.Conn=RunService.RenderStepped:Connect(function()
         local char=lp.Character; if not char then return end
         local hum=char:FindFirstChildOfClass("Humanoid")
         local hrp=char:FindFirstChild("HumanoidRootPart")
         local bav=hrp and hrp:FindFirstChild("ElevenSpin")
-        if Spin.Enabled and bav then bav.AngularVelocity=Vector3.new(0,Spin.Speed,0); if hum then hum.AutoRotate=false end
-        elseif bav then bav.AngularVelocity=Vector3.new(0,0,0); if hum then hum.AutoRotate=true end end
+        if Spin.Enabled and Spin.Active and bav then
+            bav.AngularVelocity=Vector3.new(0,Spin.Speed,0); if hum then hum.AutoRotate=false end
+        elseif bav then
+            bav.AngularVelocity=Vector3.new(0,0,0); if hum then hum.AutoRotate=true end
+        end
     end)
 end
 
 local function disableSpin()
-    Spin.Enabled=false
+    Spin.Enabled=false; Spin.Active=false
+    if SpinGUI.Gui then SpinGUI.Gui.Enabled=false end
+    if SpinGUI.Btn then SpinGUI.Btn.Text="🌀 SPIN: OFF"; SpinGUI.Btn.BackgroundColor3=DARK_BLUE2 end
     if Spin.Conn then Spin.Conn:Disconnect(); Spin.Conn=nil end
     local char=lp.Character; if char then
         local hrp=char:FindFirstChild("HumanoidRootPart")
@@ -479,340 +480,202 @@ end
 local function DisableAntiRagdoll() antiRagdollMode=nil; disconnectAllRagdoll(); cachedCharData={} end
 
 -------------------------------------------------------------------------
--- AUTO WALK (FIXED VERSION)
+-- AUTO WALK — Triangle fixed via Heartbeat
 -------------------------------------------------------------------------
 local AutoWalk = {
-    Enabled = false,
-    Active = false,
-    Mode = "IDLE",
-    Path1 = {
-        Vector3.new(-470.6, -5.9, 34.4),
-        Vector3.new(-484.2, -3.9, 21.4),
-        Vector3.new(-475.6, -5.8, 29.3),
-        Vector3.new(-473.4, -5.9, 111)
-    },
-    Path2 = {
-        Vector3.new(-474.7, -5.9, 91.0),
-        Vector3.new(-483.4, -3.9, 97.3),
-        Vector3.new(-474.7, -5.9, 91.0),
-        Vector3.new(-476.1, -5.5, 25.4)
-    },
-    Speed1 = 58.37,
-    Speed2 = 29.4,
-    JumpPower = 50,
-    Connection = nil,
-    CurrentPath = nil,
-    PathIndex = 1,
-    Gui = nil,
-    MainFrame = nil,
-    ToggleBtn = nil,
-    StatusText = nil,
-    UpTriangle = nil
+    Enabled=false, Active=false, Mode="IDLE",
+    Path1={Vector3.new(-470.6,-5.9,34.4),Vector3.new(-484.2,-3.9,21.4),Vector3.new(-475.6,-5.8,29.3),Vector3.new(-473.4,-5.9,111)},
+    Path2={Vector3.new(-474.7,-5.9,91.0),Vector3.new(-483.4,-3.9,97.3),Vector3.new(-474.7,-5.9,91.0),Vector3.new(-476.1,-5.5,25.4)},
+    Speed1=58.37, Speed2=29.4, JumpPower=50,
+    Connection=nil, CurrentPath=nil, PathIndex=1,
+    Gui=nil, MainFrame=nil, ToggleBtn=nil, StatusText=nil,
+    UpTriangle=nil, TrianglePulse=nil
 }
 
-local function aw_moveToPoint(hrp, target, speed)
-    local pos = hrp.Position
-    local dir = (target - pos) * Vector3.new(1, 0, 1)
-    if dir.Magnitude <= 3 then
-        hrp.AssemblyLinearVelocity = Vector3.new(0, hrp.AssemblyLinearVelocity.Y, 0)
-        return true
-    end
-    local moveDir = dir.Unit * speed
-    hrp.AssemblyLinearVelocity = Vector3.new(moveDir.X, hrp.AssemblyLinearVelocity.Y, moveDir.Z)
-    return false
+local function aw_moveToPoint(hrp,target,speed)
+    local pos=hrp.Position; local dir=(target-pos)*Vector3.new(1,0,1)
+    if dir.Magnitude<=3 then hrp.AssemblyLinearVelocity=Vector3.new(0,hrp.AssemblyLinearVelocity.Y,0); return true end
+    local moveDir=dir.Unit*speed; hrp.AssemblyLinearVelocity=Vector3.new(moveDir.X,hrp.AssemblyLinearVelocity.Y,moveDir.Z); return false
 end
 
 local function aw_runPath(path)
-    local char = lp.Character
-    if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-    for i = 1, #path do
-        if not AutoWalk.Active or AutoWalk.Mode == "IDLE" then break end
-        local target = path[i]
-        while AutoWalk.Active and AutoWalk.Mode ~= "IDLE" do
-            local reached = aw_moveToPoint(hrp, target, i > 2 and AutoWalk.Speed2 or AutoWalk.Speed1)
+    local char=lp.Character; if not char then return end
+    local hrp=char:FindFirstChild("HumanoidRootPart"); if not hrp then return end
+    for i=1,#path do
+        if not AutoWalk.Active or AutoWalk.Mode=="IDLE" then break end
+        local target=path[i]
+        while AutoWalk.Active and AutoWalk.Mode~="IDLE" do
+            local reached=aw_moveToPoint(hrp,target,i>2 and AutoWalk.Speed2 or AutoWalk.Speed1)
             if reached then break end
             RunService.Heartbeat:Wait()
         end
-        if i == 2 and AutoWalk.Active and AutoWalk.Mode ~= "IDLE" then
-            hrp.AssemblyLinearVelocity = Vector3.new(hrp.AssemblyLinearVelocity.X, AutoWalk.JumpPower, hrp.AssemblyLinearVelocity.Z)
+        if i==2 and AutoWalk.Active and AutoWalk.Mode~="IDLE" then
+            hrp.AssemblyLinearVelocity=Vector3.new(hrp.AssemblyLinearVelocity.X,AutoWalk.JumpPower,hrp.AssemblyLinearVelocity.Z)
             task.wait(0.35)
         end
         task.wait(0.1)
     end
-    if AutoWalk.Active and AutoWalk.Mode == "AUTO" then
+    if AutoWalk.Active and AutoWalk.Mode=="AUTO" then
         task.spawn(function()
             task.wait(0.5)
-            if AutoWalk.Active and AutoWalk.Mode == "AUTO" then
-                local char = lp.Character
-                if char and char:FindFirstChild("HumanoidRootPart") then
-                    local hrp = char.HumanoidRootPart
-                    local nextPath = (hrp.Position.Z < 60) and AutoWalk.Path2 or AutoWalk.Path1
-                    aw_runPath(nextPath)
+            if AutoWalk.Active and AutoWalk.Mode=="AUTO" then
+                local c=lp.Character
+                if c and c:FindFirstChild("HumanoidRootPart") then
+                    local h=c.HumanoidRootPart
+                    aw_runPath((h.Position.Z<60) and AutoWalk.Path2 or AutoWalk.Path1)
                 end
             end
         end)
     elseif AutoWalk.Active then
-        AutoWalk.Active = false
-        AutoWalk.Mode = "IDLE"
-        if AutoWalk.StatusText then
-            AutoWalk.StatusText.Text = "⏸  Idle"
-            AutoWalk.StatusText.TextColor3 = Color3.fromRGB(140, 150, 180)
-        end
+        AutoWalk.Active=false; AutoWalk.Mode="IDLE"
+        if AutoWalk.StatusText then AutoWalk.StatusText.Text="⏸  Idle"; AutoWalk.StatusText.TextColor3=Color3.fromRGB(140,150,180) end
     end
+end
+
+local function aw_stop()
+    AutoWalk.Active=false; AutoWalk.Mode="IDLE"
+    -- Stop triangle pulse
+    if AutoWalk.TrianglePulse then AutoWalk.TrianglePulse:Disconnect(); AutoWalk.TrianglePulse=nil end
+    if AutoWalk.UpTriangle then AutoWalk.UpTriangle.TextColor3=Color3.fromRGB(60,80,160) end
+    if AutoWalk.StatusText then AutoWalk.StatusText.Text="⏸  Idle"; AutoWalk.StatusText.TextColor3=Color3.fromRGB(140,150,180) end
+    local char=lp.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then char.HumanoidRootPart.AssemblyLinearVelocity=Vector3.zero end
 end
 
 local function aw_startMode(mode)
     if not AutoWalk.Enabled then return end
-    AutoWalk.Active = true
-    AutoWalk.Mode = mode
+    AutoWalk.Active=true; AutoWalk.Mode=mode
     if AutoWalk.StatusText then
-        if mode == "LEFT" then
-            AutoWalk.StatusText.Text = "◀  LEFT PATH — Walking..."
-        elseif mode == "RIGHT" then
-            AutoWalk.StatusText.Text = "▶  RIGHT PATH — Walking..."
-        elseif mode == "AUTO" then
-            AutoWalk.StatusText.Text = "▲  AUTO MODE — Walking..."
-        end
+        if mode=="LEFT" then AutoWalk.StatusText.Text="◀  LEFT PATH — Walking..."
+        elseif mode=="RIGHT" then AutoWalk.StatusText.Text="▶  RIGHT PATH — Walking..."
+        elseif mode=="AUTO" then AutoWalk.StatusText.Text="▲  AUTO MODE — Walking..." end
+    end
+    -- ▲ Triangle Heartbeat pulse (FIXED — no more recursive delay)
+    if AutoWalk.TrianglePulse then AutoWalk.TrianglePulse:Disconnect(); AutoWalk.TrianglePulse=nil end
+    if AutoWalk.UpTriangle then
+        AutoWalk.TrianglePulse = RunService.Heartbeat:Connect(function()
+            if not AutoWalk.Active then
+                if AutoWalk.UpTriangle then AutoWalk.UpTriangle.TextColor3=Color3.fromRGB(60,80,160) end
+                if AutoWalk.TrianglePulse then AutoWalk.TrianglePulse:Disconnect(); AutoWalk.TrianglePulse=nil end
+                return
+            end
+            local pulse=math.abs(math.sin(tick()*math.pi*0.8))
+            AutoWalk.UpTriangle.TextColor3=Color3.fromRGB(
+                math.floor(40+pulse*60),
+                math.floor(80+pulse*120),
+                math.floor(160+pulse*95)
+            )
+        end)
     end
     task.spawn(function()
-        if mode == "LEFT" then
-            aw_runPath(AutoWalk.Path1)
-        elseif mode == "RIGHT" then
-            aw_runPath(AutoWalk.Path2)
-        elseif mode == "AUTO" then
-            local char = lp.Character
+        if mode=="LEFT" then aw_runPath(AutoWalk.Path1)
+        elseif mode=="RIGHT" then aw_runPath(AutoWalk.Path2)
+        elseif mode=="AUTO" then
+            local char=lp.Character
             if char and char:FindFirstChild("HumanoidRootPart") then
-                local hrp = char.HumanoidRootPart
-                local startPath = (hrp.Position.Z < 60) and AutoWalk.Path2 or AutoWalk.Path1
-                aw_runPath(startPath)
+                aw_runPath((char.HumanoidRootPart.Position.Z<60) and AutoWalk.Path2 or AutoWalk.Path1)
             end
         end
     end)
-end
-
-local function aw_stop()
-    AutoWalk.Active = false
-    AutoWalk.Mode = "IDLE"
-    if AutoWalk.StatusText then
-        AutoWalk.StatusText.Text = "⏸  Idle"
-        AutoWalk.StatusText.TextColor3 = Color3.fromRGB(140, 150, 180)
-    end
-    local char = lp.Character
-    if char and char:FindFirstChild("HumanoidRootPart") then
-        char.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero
-    end
 end
 
 local function createAutoWalkUI()
-    AutoWalk.Gui = Instance.new("ScreenGui")
-    AutoWalk.Gui.Name = "AutoWalkGUI"
-    AutoWalk.Gui.ResetOnSpawn = false
-    AutoWalk.Gui.Enabled = false
-    AutoWalk.Gui.Parent = CoreGui
-    
-    AutoWalk.MainFrame = Instance.new("Frame")
-    AutoWalk.MainFrame.Name = "AutoWalkMainFrame"
-    AutoWalk.MainFrame.Size = UDim2.new(0, 270, 0, 295)
-    AutoWalk.MainFrame.Position = UDim2.new(0.5, -135, 0.4, 0)
-    AutoWalk.MainFrame.BackgroundColor3 = Color3.fromRGB(14, 18, 26)
-    AutoWalk.MainFrame.BackgroundTransparency = 0.1
-    AutoWalk.MainFrame.BorderSizePixel = 0
-    AutoWalk.MainFrame.Active = true
-    AutoWalk.MainFrame.Draggable = true
-    AutoWalk.MainFrame.Parent = AutoWalk.Gui
-    
-    Instance.new("UICorner", AutoWalk.MainFrame).CornerRadius = UDim.new(0, 14)
-    local mfStroke = Instance.new("UIStroke", AutoWalk.MainFrame)
-    mfStroke.Color = Color3.fromRGB(70, 130, 255)
-    mfStroke.Thickness = 2
-    
-    local AccentBar = Instance.new("Frame")
-    AccentBar.Size = UDim2.new(1, 0, 0, 4)
-    AccentBar.BackgroundColor3 = Color3.fromRGB(60, 120, 255)
-    AccentBar.BorderSizePixel = 0
-    AccentBar.Parent = AutoWalk.MainFrame
-    Instance.new("UICorner", AccentBar).CornerRadius = UDim.new(0, 14)
-    local ag = Instance.new("UIGradient", AccentBar)
-    ag.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(40,100,255)), ColorSequenceKeypoint.new(0.5, Color3.fromRGB(140,80,255)), ColorSequenceKeypoint.new(1, Color3.fromRGB(40,100,255))})
-    
-    local titleFrame = Instance.new("Frame")
-    titleFrame.Size = UDim2.new(1, 0, 0, 38)
-    titleFrame.Position = UDim2.new(0, 0, 0, 8)
-    titleFrame.BackgroundTransparency = 1
-    titleFrame.Parent = AutoWalk.MainFrame
-    local titleIcon = Instance.new("TextLabel", titleFrame)
-    titleIcon.Size = UDim2.new(0, 28, 1, 0); titleIcon.Position = UDim2.new(0, 12, 0, 0)
-    titleIcon.BackgroundTransparency = 1; titleIcon.Text = "🤖"; titleIcon.TextSize = 18; titleIcon.Font = Enum.Font.GothamBold; titleIcon.TextColor3 = Color3.fromRGB(120, 160, 255)
-    local titleLabel = Instance.new("TextLabel", titleFrame)
-    titleLabel.Size = UDim2.new(1, -50, 1, 0); titleLabel.Position = UDim2.new(0, 42, 0, 0)
-    titleLabel.BackgroundTransparency = 1; titleLabel.Text = "Auto Walk"; titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    titleLabel.TextSize = 15; titleLabel.TextXAlignment = Enum.TextXAlignment.Left; titleLabel.Font = Enum.Font.GothamBold
-    
-    local UpTriangle = Instance.new("TextLabel")
-    UpTriangle.Size = UDim2.new(0, 32, 0, 32)
-    UpTriangle.Position = UDim2.new(1, -44, 0, 6)
-    UpTriangle.BackgroundTransparency = 1
-    UpTriangle.Text = "▲"
-    UpTriangle.TextColor3 = Color3.fromRGB(60, 80, 160)
-    UpTriangle.TextSize = 22
-    UpTriangle.Font = Enum.Font.GothamBold
-    UpTriangle.Parent = AutoWalk.MainFrame
-    AutoWalk.UpTriangle = UpTriangle
-    
-    local header = Instance.new("Frame")
-    header.Size = UDim2.new(1, -20, 0, 40)
-    header.Position = UDim2.new(0, 10, 0, 52)
-    header.BackgroundColor3 = Color3.fromRGB(0, 100, 200)
-    header.BorderSizePixel = 0
-    header.Parent = AutoWalk.MainFrame
-    Instance.new("UICorner", header).CornerRadius = UDim.new(0, 8)
-    local hdrGrad = Instance.new("UIGradient", header)
-    hdrGrad.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(0,90,190)), ColorSequenceKeypoint.new(1, Color3.fromRGB(50,50,190))})
-    hdrGrad.Rotation = 90
-    
-    AutoWalk.ToggleBtn = Instance.new("TextButton")
-    AutoWalk.ToggleBtn.Size = UDim2.new(1, 0, 1, 0)
-    AutoWalk.ToggleBtn.BackgroundTransparency = 1
-    AutoWalk.ToggleBtn.Text = "▲  ENABLE AUTO WALK"
-    AutoWalk.ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    AutoWalk.ToggleBtn.TextSize = 14
-    AutoWalk.ToggleBtn.Font = Enum.Font.GothamBold
-    AutoWalk.ToggleBtn.Parent = header
-    
-    local function createSlider(icon, label, min, max, default, yPos, callback)
-        local container = Instance.new("Frame")
-        container.Size = UDim2.new(1, -20, 0, 44)
-        container.Position = UDim2.new(0, 10, 0, yPos)
-        container.BackgroundColor3 = Color3.fromRGB(20, 26, 38)
-        container.BackgroundTransparency = 0.3
-        container.Parent = AutoWalk.MainFrame
-        Instance.new("UICorner", container).CornerRadius = UDim.new(0, 8)
-        local cs = Instance.new("UIStroke", container); cs.Color = Color3.fromRGB(45, 65, 120); cs.Thickness = 1; cs.Transparency = 0.5
-        
-        local iconLbl = Instance.new("TextLabel", container)
-        iconLbl.Size = UDim2.new(0, 22, 1, 0); iconLbl.Position = UDim2.new(0, 8, 0, 0)
-        iconLbl.BackgroundTransparency = 1; iconLbl.Text = icon; iconLbl.TextSize = 14
-        iconLbl.TextColor3 = Color3.fromRGB(100, 160, 255); iconLbl.Font = Enum.Font.GothamBold
-        
-        local labelText = Instance.new("TextLabel", container)
-        labelText.Size = UDim2.new(0.55, 0, 1, 0); labelText.Position = UDim2.new(0, 32, 0, 0)
-        labelText.BackgroundTransparency = 1; labelText.Text = label
-        labelText.TextColor3 = Color3.fromRGB(210, 215, 230); labelText.TextSize = 13
-        labelText.TextXAlignment = Enum.TextXAlignment.Left; labelText.Font = Enum.Font.GothamSemibold
-        
-        local valueBox = Instance.new("TextBox", container)
-        valueBox.Size = UDim2.new(0, 70, 0, 28); valueBox.Position = UDim2.new(1, -78, 0.5, -14)
-        valueBox.BackgroundColor3 = Color3.fromRGB(10, 14, 26)
-        valueBox.Text = tostring(default); valueBox.TextColor3 = Color3.fromRGB(100, 190, 255)
-        valueBox.TextSize = 13; valueBox.Font = Enum.Font.GothamBold; valueBox.ClearTextOnFocus = false
-        Instance.new("UICorner", valueBox).CornerRadius = UDim.new(0, 6)
-        local vs = Instance.new("UIStroke", valueBox); vs.Color = Color3.fromRGB(50, 100, 200); vs.Thickness = 1
-        
-        valueBox.FocusLost:Connect(function()
-            local num = tonumber(valueBox.Text)
-            if num then num = math.clamp(num, min, max); valueBox.Text = tostring(num); callback(num)
-            else valueBox.Text = tostring(default); callback(default) end
+    AutoWalk.Gui=Instance.new("ScreenGui"); AutoWalk.Gui.Name="AutoWalkGUI"
+    AutoWalk.Gui.ResetOnSpawn=false; AutoWalk.Gui.Enabled=false; AutoWalk.Gui.Parent=CoreGui
+
+    AutoWalk.MainFrame=Instance.new("Frame"); AutoWalk.MainFrame.Name="AutoWalkMainFrame"
+    AutoWalk.MainFrame.Size=UDim2.new(0,270,0,295); AutoWalk.MainFrame.Position=UDim2.new(0.5,-135,0.4,0)
+    AutoWalk.MainFrame.BackgroundColor3=Color3.fromRGB(14,18,26); AutoWalk.MainFrame.BackgroundTransparency=0.1
+    AutoWalk.MainFrame.BorderSizePixel=0; AutoWalk.MainFrame.Active=true; AutoWalk.MainFrame.Draggable=true
+    AutoWalk.MainFrame.Parent=AutoWalk.Gui
+    Instance.new("UICorner",AutoWalk.MainFrame).CornerRadius=UDim.new(0,14)
+    local mfS=Instance.new("UIStroke",AutoWalk.MainFrame); mfS.Color=Color3.fromRGB(70,130,255); mfS.Thickness=2
+
+    local AB=Instance.new("Frame"); AB.Size=UDim2.new(1,0,0,4); AB.BackgroundColor3=Color3.fromRGB(60,120,255); AB.BorderSizePixel=0; AB.Parent=AutoWalk.MainFrame
+    Instance.new("UICorner",AB).CornerRadius=UDim.new(0,14)
+    local ag=Instance.new("UIGradient",AB); ag.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromRGB(40,100,255)),ColorSequenceKeypoint.new(0.5,Color3.fromRGB(140,80,255)),ColorSequenceKeypoint.new(1,Color3.fromRGB(40,100,255))})
+
+    local tf=Instance.new("Frame"); tf.Size=UDim2.new(1,0,0,38); tf.Position=UDim2.new(0,0,0,8); tf.BackgroundTransparency=1; tf.Parent=AutoWalk.MainFrame
+    local ti=Instance.new("TextLabel",tf); ti.Size=UDim2.new(0,28,1,0); ti.Position=UDim2.new(0,12,0,0); ti.BackgroundTransparency=1; ti.Text="🤖"; ti.TextSize=18; ti.Font=Enum.Font.GothamBold; ti.TextColor3=Color3.fromRGB(120,160,255)
+    local tl=Instance.new("TextLabel",tf); tl.Size=UDim2.new(1,-50,1,0); tl.Position=UDim2.new(0,42,0,0); tl.BackgroundTransparency=1; tl.Text="Auto Walk"; tl.TextColor3=Color3.fromRGB(255,255,255); tl.TextSize=15; tl.TextXAlignment=Enum.TextXAlignment.Left; tl.Font=Enum.Font.GothamBold
+
+    -- ▲ Up Triangle Indicator
+    local UT=Instance.new("TextLabel"); UT.Size=UDim2.new(0,32,0,32); UT.Position=UDim2.new(1,-44,0,6)
+    UT.BackgroundTransparency=1; UT.Text="▲"; UT.TextColor3=Color3.fromRGB(60,80,160); UT.TextSize=22; UT.Font=Enum.Font.GothamBold; UT.Parent=AutoWalk.MainFrame
+    AutoWalk.UpTriangle=UT
+
+    local header=Instance.new("Frame"); header.Size=UDim2.new(1,-20,0,40); header.Position=UDim2.new(0,10,0,52); header.BackgroundColor3=Color3.fromRGB(0,100,200); header.BorderSizePixel=0; header.Parent=AutoWalk.MainFrame
+    Instance.new("UICorner",header).CornerRadius=UDim.new(0,8)
+    local hg=Instance.new("UIGradient",header); hg.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromRGB(0,90,190)),ColorSequenceKeypoint.new(1,Color3.fromRGB(50,50,190))}); hg.Rotation=90
+    AutoWalk.ToggleBtn=Instance.new("TextButton"); AutoWalk.ToggleBtn.Size=UDim2.new(1,0,1,0); AutoWalk.ToggleBtn.BackgroundTransparency=1
+    AutoWalk.ToggleBtn.Text="▲  ENABLE AUTO WALK"; AutoWalk.ToggleBtn.TextColor3=Color3.fromRGB(255,255,255); AutoWalk.ToggleBtn.TextSize=14; AutoWalk.ToggleBtn.Font=Enum.Font.GothamBold; AutoWalk.ToggleBtn.Parent=header
+
+    local function createSlider(icon,label,min,max,default,yPos,callback)
+        local c=Instance.new("Frame"); c.Size=UDim2.new(1,-20,0,44); c.Position=UDim2.new(0,10,0,yPos); c.BackgroundColor3=Color3.fromRGB(20,26,38); c.BackgroundTransparency=0.3; c.Parent=AutoWalk.MainFrame
+        Instance.new("UICorner",c).CornerRadius=UDim.new(0,8)
+        local cs=Instance.new("UIStroke",c); cs.Color=Color3.fromRGB(45,65,120); cs.Thickness=1; cs.Transparency=0.5
+        local il=Instance.new("TextLabel",c); il.Size=UDim2.new(0,22,1,0); il.Position=UDim2.new(0,8,0,0); il.BackgroundTransparency=1; il.Text=icon; il.TextSize=14; il.TextColor3=Color3.fromRGB(100,160,255); il.Font=Enum.Font.GothamBold
+        local lt=Instance.new("TextLabel",c); lt.Size=UDim2.new(0.55,0,1,0); lt.Position=UDim2.new(0,32,0,0); lt.BackgroundTransparency=1; lt.Text=label; lt.TextColor3=Color3.fromRGB(210,215,230); lt.TextSize=13; lt.TextXAlignment=Enum.TextXAlignment.Left; lt.Font=Enum.Font.GothamSemibold
+        local vb=Instance.new("TextBox",c); vb.Size=UDim2.new(0,70,0,28); vb.Position=UDim2.new(1,-78,0.5,-14); vb.BackgroundColor3=Color3.fromRGB(10,14,26); vb.Text=tostring(default); vb.TextColor3=Color3.fromRGB(100,190,255); vb.TextSize=13; vb.Font=Enum.Font.GothamBold; vb.ClearTextOnFocus=false
+        Instance.new("UICorner",vb).CornerRadius=UDim.new(0,6); local vs=Instance.new("UIStroke",vb); vs.Color=Color3.fromRGB(50,100,200); vs.Thickness=1
+        vb.FocusLost:Connect(function()
+            local num=tonumber(vb.Text)
+            if num then num=math.clamp(num,min,max); vb.Text=tostring(num); callback(num)
+            else vb.Text=tostring(default); callback(default) end
         end)
-        return valueBox
+        return vb
     end
-    
-    createSlider("▲", "Speed Phase 1", 1, 200, AutoWalk.Speed1, 100, function(val) AutoWalk.Speed1 = val end)
-    createSlider("▲", "Speed Phase 2", 1, 200, AutoWalk.Speed2, 152, function(val) AutoWalk.Speed2 = val end)
-    
-    local modeContainer = Instance.new("Frame")
-    modeContainer.Size = UDim2.new(1, -20, 0, 62)
-    modeContainer.Position = UDim2.new(0, 10, 0, 204)
-    modeContainer.BackgroundTransparency = 1
-    modeContainer.Parent = AutoWalk.MainFrame
-    
-    local modeLabel = Instance.new("TextLabel", modeContainer)
-    modeLabel.Size = UDim2.new(1, 0, 0, 18); modeLabel.BackgroundTransparency = 1
-    modeLabel.Text = "Walk Mode"; modeLabel.TextColor3 = Color3.fromRGB(140, 150, 180)
-    modeLabel.TextSize = 12; modeLabel.TextXAlignment = Enum.TextXAlignment.Left; modeLabel.Font = Enum.Font.GothamSemibold
-    
-    local function makeBtn(text, icon, color, xPos)
-        local btn = Instance.new("TextButton", modeContainer)
-        btn.Size = UDim2.new(0.31, 0, 0, 34); btn.Position = UDim2.new(xPos, 0, 0, 22)
-        btn.BackgroundColor3 = color; btn.Text = icon.." "..text
-        btn.TextColor3 = Color3.new(1,1,1); btn.TextSize = 12; btn.Font = Enum.Font.GothamBold
-        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
-        local bs = Instance.new("UIStroke", btn); bs.Color = Color3.fromRGB(255,255,255); bs.Thickness = 1; bs.Transparency = 0.7
-        return btn
+    createSlider("▲","Speed Phase 1",1,200,AutoWalk.Speed1,100,function(v) AutoWalk.Speed1=v end)
+    createSlider("▲","Speed Phase 2",1,200,AutoWalk.Speed2,152,function(v) AutoWalk.Speed2=v end)
+
+    local mc=Instance.new("Frame"); mc.Size=UDim2.new(1,-20,0,62); mc.Position=UDim2.new(0,10,0,204); mc.BackgroundTransparency=1; mc.Parent=AutoWalk.MainFrame
+    local ml=Instance.new("TextLabel",mc); ml.Size=UDim2.new(1,0,0,18); ml.BackgroundTransparency=1; ml.Text="Walk Mode"; ml.TextColor3=Color3.fromRGB(140,150,180); ml.TextSize=12; ml.TextXAlignment=Enum.TextXAlignment.Left; ml.Font=Enum.Font.GothamSemibold
+
+    local function makeBtn(text,icon,color,xPos)
+        local btn=Instance.new("TextButton",mc); btn.Size=UDim2.new(0.31,0,0,34); btn.Position=UDim2.new(xPos,0,0,22); btn.BackgroundColor3=color; btn.Text=icon.." "..text; btn.TextColor3=Color3.new(1,1,1); btn.TextSize=12; btn.Font=Enum.Font.GothamBold
+        Instance.new("UICorner",btn).CornerRadius=UDim.new(0,8); local bs=Instance.new("UIStroke",btn); bs.Color=Color3.fromRGB(255,255,255); bs.Thickness=1; bs.Transparency=0.7; return btn
     end
-    
-    local leftBtn  = makeBtn("LEFT",  "◀", Color3.fromRGB(40, 120, 220), 0)
-    local rightBtn = makeBtn("RIGHT", "▶", Color3.fromRGB(40, 120, 220), 0.345)
-    local autoBtn  = makeBtn("AUTO",  "▲", Color3.fromRGB(90, 50, 200),  0.69)
-    
-    local statusFrame = Instance.new("Frame")
-    statusFrame.Size = UDim2.new(1, -20, 0, 30); statusFrame.Position = UDim2.new(0, 10, 0, 272)
-    statusFrame.BackgroundColor3 = Color3.fromRGB(18, 24, 36); statusFrame.BackgroundTransparency = 0.3
-    statusFrame.Parent = AutoWalk.MainFrame
-    Instance.new("UICorner", statusFrame).CornerRadius = UDim.new(0, 8)
-    local ssb = Instance.new("UIStroke", statusFrame); ssb.Color = Color3.fromRGB(45, 65, 120); ssb.Thickness = 1
-    
-    AutoWalk.StatusText = Instance.new("TextLabel", statusFrame)
-    AutoWalk.StatusText.Size = UDim2.new(1, -10, 1, 0); AutoWalk.StatusText.Position = UDim2.new(0, 8, 0, 0)
-    AutoWalk.StatusText.BackgroundTransparency = 1; AutoWalk.StatusText.Text = "⏸  Idle"
-    AutoWalk.StatusText.TextColor3 = Color3.fromRGB(140, 150, 180)
-    AutoWalk.StatusText.TextSize = 12; AutoWalk.StatusText.TextXAlignment = Enum.TextXAlignment.Left
-    AutoWalk.StatusText.Font = Enum.Font.GothamSemibold
-    
-    local function pulseTriangle(active)
-        if active then
-            local function doPulse()
-                if not AutoWalk.Active then return end
-                TweenService:Create(AutoWalk.UpTriangle, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {TextColor3 = Color3.fromRGB(100, 200, 255)}):Play()
-                task.delay(0.5, function()
-                    if not AutoWalk.Active then AutoWalk.UpTriangle.TextColor3 = Color3.fromRGB(60, 80, 160); return end
-                    TweenService:Create(AutoWalk.UpTriangle, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {TextColor3 = Color3.fromRGB(40, 80, 200)}):Play()
-                    task.delay(0.5, doPulse)
-                end)
-            end
-            doPulse()
-        else
-            AutoWalk.UpTriangle.TextColor3 = Color3.fromRGB(60, 80, 160)
-        end
-    end
-    
+    local leftBtn=makeBtn("LEFT","◀",Color3.fromRGB(40,120,220),0)
+    local rightBtn=makeBtn("RIGHT","▶",Color3.fromRGB(40,120,220),0.345)
+    local autoBtn=makeBtn("AUTO","▲",Color3.fromRGB(90,50,200),0.69)
+
+    local sf=Instance.new("Frame"); sf.Size=UDim2.new(1,-20,0,30); sf.Position=UDim2.new(0,10,0,272); sf.BackgroundColor3=Color3.fromRGB(18,24,36); sf.BackgroundTransparency=0.3; sf.Parent=AutoWalk.MainFrame
+    Instance.new("UICorner",sf).CornerRadius=UDim.new(0,8); local ssb=Instance.new("UIStroke",sf); ssb.Color=Color3.fromRGB(45,65,120); ssb.Thickness=1
+    AutoWalk.StatusText=Instance.new("TextLabel",sf); AutoWalk.StatusText.Size=UDim2.new(1,-10,1,0); AutoWalk.StatusText.Position=UDim2.new(0,8,0,0); AutoWalk.StatusText.BackgroundTransparency=1; AutoWalk.StatusText.Text="⏸  Idle"; AutoWalk.StatusText.TextColor3=Color3.fromRGB(140,150,180); AutoWalk.StatusText.TextSize=12; AutoWalk.StatusText.TextXAlignment=Enum.TextXAlignment.Left; AutoWalk.StatusText.Font=Enum.Font.GothamSemibold
+
     AutoWalk.ToggleBtn.MouseButton1Click:Connect(function()
-        AutoWalk.Enabled = not AutoWalk.Enabled
+        AutoWalk.Enabled=not AutoWalk.Enabled
         if AutoWalk.Enabled then
-            AutoWalk.ToggleBtn.Text = "✕  DISABLE AUTO WALK"
-            TweenService:Create(header, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(180, 40, 40)}):Play()
-            AutoWalk.StatusText.Text = "▲  Ready — Choose mode"; AutoWalk.StatusText.TextColor3 = Color3.fromRGB(120, 200, 255)
+            AutoWalk.ToggleBtn.Text="✕  DISABLE AUTO WALK"
+            TweenService:Create(header,TweenInfo.new(0.2),{BackgroundColor3=Color3.fromRGB(180,40,40)}):Play()
+            AutoWalk.StatusText.Text="▲  Ready — Choose mode"; AutoWalk.StatusText.TextColor3=Color3.fromRGB(120,200,255)
         else
-            AutoWalk.ToggleBtn.Text = "▲  ENABLE AUTO WALK"
-            TweenService:Create(header, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(0, 100, 200)}):Play()
-            aw_stop(); pulseTriangle(false); AutoWalk.StatusText.TextColor3 = Color3.fromRGB(140, 150, 180)
+            AutoWalk.ToggleBtn.Text="▲  ENABLE AUTO WALK"
+            TweenService:Create(header,TweenInfo.new(0.2),{BackgroundColor3=Color3.fromRGB(0,100,200)}):Play()
+            aw_stop()
         end
     end)
-    
     leftBtn.MouseButton1Click:Connect(function()
-        if not AutoWalk.Enabled then return end; aw_stop(); aw_startMode("LEFT"); pulseTriangle(true)
-        AutoWalk.StatusText.TextColor3 = Color3.fromRGB(80, 200, 120)
+        if not AutoWalk.Enabled then return end; aw_stop(); aw_startMode("LEFT")
+        AutoWalk.StatusText.TextColor3=Color3.fromRGB(80,200,120)
     end)
     rightBtn.MouseButton1Click:Connect(function()
-        if not AutoWalk.Enabled then return end; aw_stop(); aw_startMode("RIGHT"); pulseTriangle(true)
-        AutoWalk.StatusText.TextColor3 = Color3.fromRGB(80, 200, 120)
+        if not AutoWalk.Enabled then return end; aw_stop(); aw_startMode("RIGHT")
+        AutoWalk.StatusText.TextColor3=Color3.fromRGB(80,200,120)
     end)
     autoBtn.MouseButton1Click:Connect(function()
-        if not AutoWalk.Enabled then return end; aw_stop(); aw_startMode("AUTO"); pulseTriangle(true)
-        AutoWalk.StatusText.TextColor3 = Color3.fromRGB(140, 100, 255)
+        if not AutoWalk.Enabled then return end; aw_stop(); aw_startMode("AUTO")
+        AutoWalk.StatusText.TextColor3=Color3.fromRGB(140,100,255)
     end)
 end
 
 local function enableAutoWalk()
     if not AutoWalk.Gui then createAutoWalkUI() end
-    AutoWalk.Gui.Enabled = true
+    AutoWalk.Gui.Enabled=true
 end
-
 local function disableAutoWalk()
-    aw_stop()
-    AutoWalk.Enabled = false
-    if AutoWalk.Gui then AutoWalk.Gui.Enabled = false end
+    aw_stop(); AutoWalk.Enabled=false
+    if AutoWalk.Gui then AutoWalk.Gui.Enabled=false end
 end
 
 -------------------------------------------------------------------------
@@ -820,7 +683,7 @@ end
 -------------------------------------------------------------------------
 local XrayBase={Enabled=false,OriginalTransparency={},Connections={},BaseKeywords={"base","claim"}}
 local function isPlayerBase(obj)
-    if not (obj:IsA("BasePart") or obj:IsA("MeshPart") or obj:IsA("UnionOperation")) then return false end
+    if not(obj:IsA("BasePart") or obj:IsA("MeshPart") or obj:IsA("UnionOperation")) then return false end
     local n=obj.Name:lower(); local p=obj.Parent and obj.Parent.Name:lower() or ""
     for _,kw in ipairs(XrayBase.BaseKeywords) do if n:find(kw) or p:find(kw) then return true end end
     return false
@@ -899,10 +762,11 @@ local function disableESP()
 end
 
 -------------------------------------------------------------------------
--- SPEED CUSTOMIZER (UPDATED UI)
+-- ⚡ SPEED CUSTOMIZER — with ▲ Triangle pulse
 -------------------------------------------------------------------------
-local SpeedCustomizer={Enabled=false,SpeedUI=nil,SpeedValue=58,StealValue=29,JumpValue=50,DownValue=100,HeartbeatConn=nil,JumpConn=nil,character=nil,hrp=nil,hum=nil}
+local SpeedCustomizer={Enabled=false,SpeedUI=nil,SpeedValue=58,StealValue=29,JumpValue=50,DownValue=100,HeartbeatConn=nil,JumpConn=nil,character=nil,hrp=nil,hum=nil,UpTriangle=nil,TriangleConn=nil}
 local function setupSpeedCharacter(char) SpeedCustomizer.character=char; SpeedCustomizer.hrp=char:WaitForChild("HumanoidRootPart"); SpeedCustomizer.hum=char:WaitForChild("Humanoid") end
+
 local function createSpeedUI()
     local sg=create("ScreenGui",{Name="IvoDuels_SpeedUI",ResetOnSpawn=false,Parent=CoreGui})
     local MF=create("Frame",{Name="SpeedMainFrame",Size=UDim2.new(0,260,0,285),Position=UDim2.new(0.5,-130,0.4,0),BackgroundColor3=Color3.fromRGB(14,18,26),BackgroundTransparency=0.1,BorderSizePixel=0,Active=true,Draggable=true,Parent=sg})
@@ -910,24 +774,31 @@ local function createSpeedUI()
     create("UIStroke",{Color=Color3.fromRGB(70,130,255),Thickness=2,Parent=MF})
     local AccentBar=create("Frame",{Size=UDim2.new(1,0,0,4),Position=UDim2.new(0,0,0,0),BackgroundColor3=Color3.fromRGB(60,120,255),BorderSizePixel=0,Parent=MF})
     create("UICorner",{CornerRadius=UDim.new(0,14),Parent=AccentBar})
-    local AccentGrad=Instance.new("UIGradient"); AccentGrad.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromRGB(60,100,255)),ColorSequenceKeypoint.new(0.5,Color3.fromRGB(140,80,255)),ColorSequenceKeypoint.new(1,Color3.fromRGB(60,100,255))}); AccentGrad.Parent=AccentBar
-    local titleFrame=create("Frame",{Size=UDim2.new(1,0,0,36),Position=UDim2.new(0,0,0,8),BackgroundTransparency=1,Parent=MF})
-    create("TextLabel",{Size=UDim2.new(0,28,0,28),Position=UDim2.new(0,12,0,4),BackgroundTransparency=1,Text="⚡",TextColor3=Color3.fromRGB(120,160,255),TextSize=18,Font=Enum.Font.GothamBold,Parent=titleFrame})
-    create("TextLabel",{Size=UDim2.new(1,-50,1,0),Position=UDim2.new(0,40,0,0),BackgroundTransparency=1,Text="Speed Customizer",TextColor3=Color3.fromRGB(255,255,255),TextSize=15,TextXAlignment=Enum.TextXAlignment.Left,Font=Enum.Font.GothamBold,Parent=titleFrame})
+    local ag=Instance.new("UIGradient",AccentBar); ag.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromRGB(60,100,255)),ColorSequenceKeypoint.new(0.5,Color3.fromRGB(140,80,255)),ColorSequenceKeypoint.new(1,Color3.fromRGB(60,100,255))})
+    local tf=create("Frame",{Size=UDim2.new(1,0,0,36),Position=UDim2.new(0,0,0,8),BackgroundTransparency=1,Parent=MF})
+    create("TextLabel",{Size=UDim2.new(0,28,0,28),Position=UDim2.new(0,12,0,4),BackgroundTransparency=1,Text="⚡",TextColor3=Color3.fromRGB(120,160,255),TextSize=18,Font=Enum.Font.GothamBold,Parent=tf})
+    create("TextLabel",{Size=UDim2.new(1,-50,1,0),Position=UDim2.new(0,40,0,0),BackgroundTransparency=1,Text="Speed Customizer",TextColor3=Color3.fromRGB(255,255,255),TextSize=15,TextXAlignment=Enum.TextXAlignment.Left,Font=Enum.Font.GothamBold,Parent=tf})
+    -- ▲ Triangle indicator (top right)
+    local UT=Instance.new("TextLabel"); UT.Size=UDim2.new(0,30,0,30); UT.Position=UDim2.new(1,-40,0,6); UT.BackgroundTransparency=1; UT.Text="▲"; UT.TextColor3=Color3.fromRGB(60,80,160); UT.TextSize=20; UT.Font=Enum.Font.GothamBold; UT.Parent=MF
+    SpeedCustomizer.UpTriangle=UT
     local Hdr=create("Frame",{Size=UDim2.new(1,-20,0,40),Position=UDim2.new(0,10,0,52),BackgroundColor3=Color3.fromRGB(0,120,215),BorderSizePixel=0,Parent=MF}); create("UICorner",{CornerRadius=UDim.new(0,8),Parent=Hdr})
     local HdrGrad=Instance.new("UIGradient"); HdrGrad.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromRGB(0,100,200)),ColorSequenceKeypoint.new(1,Color3.fromRGB(60,60,200))}); HdrGrad.Rotation=90; HdrGrad.Parent=Hdr
     local TBtn=create("TextButton",{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Text="⚡  SPEED ON",TextColor3=Color3.fromRGB(255,255,255),TextSize=15,Font=Enum.Font.GothamBold,Parent=Hdr})
-    local function makeRow(icon, lbl, def, pos)
-        local rowBg=create("Frame",{Size=UDim2.new(1,-20,0,36),Position=UDim2.new(0,10,0,pos),BackgroundColor3=Color3.fromRGB(22,28,40),BackgroundTransparency=0.3,Parent=MF}); create("UICorner",{CornerRadius=UDim.new(0,8),Parent=rowBg}); create("UIStroke",{Color=Color3.fromRGB(50,70,120),Thickness=1,Transparency=0.5,Parent=rowBg})
-        create("TextLabel",{Size=UDim2.new(0,22,1,0),Position=UDim2.new(0,8,0,0),BackgroundTransparency=1,Text=icon,TextColor3=Color3.fromRGB(120,160,255),TextSize=14,Font=Enum.Font.GothamBold,Parent=rowBg})
-        create("TextLabel",{Size=UDim2.new(0.55,0,1,0),Position=UDim2.new(0,32,0,0),BackgroundTransparency=1,Text=lbl,TextColor3=Color3.fromRGB(210,215,230),TextSize=13,TextXAlignment=Enum.TextXAlignment.Left,Font=Enum.Font.GothamSemibold,Parent=rowBg})
-        local box=create("TextBox",{Size=UDim2.new(0,72,0,26),Position=UDim2.new(1,-80,0.5,-13),BackgroundColor3=Color3.fromRGB(10,15,30),Text=tostring(def),TextColor3=Color3.fromRGB(120,200,255),Font=Enum.Font.GothamBold,TextSize=13,ClearTextOnFocus=false,Parent=rowBg}); create("UICorner",{CornerRadius=UDim.new(0,6),Parent=box}); create("UIStroke",{Color=Color3.fromRGB(50,100,200),Thickness=1,Parent=box}); return box
+    local function makeRow(icon,lbl,def,pos)
+        local rb=create("Frame",{Size=UDim2.new(1,-20,0,36),Position=UDim2.new(0,10,0,pos),BackgroundColor3=Color3.fromRGB(22,28,40),BackgroundTransparency=0.3,Parent=MF}); create("UICorner",{CornerRadius=UDim.new(0,8),Parent=rb}); create("UIStroke",{Color=Color3.fromRGB(50,70,120),Thickness=1,Transparency=0.5,Parent=rb})
+        create("TextLabel",{Size=UDim2.new(0,22,1,0),Position=UDim2.new(0,8,0,0),BackgroundTransparency=1,Text=icon,TextColor3=Color3.fromRGB(120,160,255),TextSize=14,Font=Enum.Font.GothamBold,Parent=rb})
+        create("TextLabel",{Size=UDim2.new(0.55,0,1,0),Position=UDim2.new(0,32,0,0),BackgroundTransparency=1,Text=lbl,TextColor3=Color3.fromRGB(210,215,230),TextSize=13,TextXAlignment=Enum.TextXAlignment.Left,Font=Enum.Font.GothamSemibold,Parent=rb})
+        local box=create("TextBox",{Size=UDim2.new(0,72,0,26),Position=UDim2.new(1,-80,0.5,-13),BackgroundColor3=Color3.fromRGB(10,15,30),Text=tostring(def),TextColor3=Color3.fromRGB(120,200,255),Font=Enum.Font.GothamBold,TextSize=13,ClearTextOnFocus=false,Parent=rb}); create("UICorner",{CornerRadius=UDim.new(0,6),Parent=box}); create("UIStroke",{Color=Color3.fromRGB(50,100,200),Thickness=1,Parent=box}); return box
     end
     local SI=makeRow("⚡","Speed",SpeedCustomizer.SpeedValue,102)
     local ST=makeRow("🎯","Steal Spd",SpeedCustomizer.StealValue,146)
     local JI=makeRow("▲","Jump",SpeedCustomizer.JumpValue,190)
     local DI=makeRow("▼","Down Spd",SpeedCustomizer.DownValue,234)
-    TBtn.MouseButton1Click:Connect(function() SpeedCustomizer.Enabled=not SpeedCustomizer.Enabled; TBtn.Text=SpeedCustomizer.Enabled and "⚡  SPEED ON" or "✕  SPEED OFF"; TweenService:Create(Hdr,TweenInfo.new(0.2),{BackgroundColor3=SpeedCustomizer.Enabled and Color3.fromRGB(0,120,215) or Color3.fromRGB(150,30,30)}):Play() end)
+    TBtn.MouseButton1Click:Connect(function()
+        SpeedCustomizer.Enabled=not SpeedCustomizer.Enabled
+        TBtn.Text=SpeedCustomizer.Enabled and "⚡  SPEED ON" or "✕  SPEED OFF"
+        TweenService:Create(Hdr,TweenInfo.new(0.2),{BackgroundColor3=SpeedCustomizer.Enabled and Color3.fromRGB(0,120,215) or Color3.fromRGB(150,30,30)}):Play()
+    end)
     local function validate(box,mn,mx)
         box.FocusLost:Connect(function()
             local num=tonumber(box.Text)
@@ -939,12 +810,20 @@ local function createSpeedUI()
     validate(SI,1,200); validate(ST,1,200); validate(JI,1,200); validate(DI,1,200)
     return {ScreenGui=sg,ToggleBtn=TBtn,MainFrame=MF}
 end
+
 local function enableSpeedCustomizer()
     if SpeedCustomizer.Enabled then return end
     if not SpeedCustomizer.SpeedUI then SpeedCustomizer.SpeedUI=createSpeedUI() else SpeedCustomizer.SpeedUI.ScreenGui.Enabled=true end
     SpeedCustomizer.Enabled=true; SpeedCustomizer.SpeedUI.ToggleBtn.Text="⚡  SPEED ON"
     if lp.Character then setupSpeedCharacter(lp.Character) end
     lp.CharacterAdded:Connect(setupSpeedCharacter)
+    -- ▲ Triangle Heartbeat pulse
+    if SpeedCustomizer.TriangleConn then SpeedCustomizer.TriangleConn:Disconnect(); SpeedCustomizer.TriangleConn=nil end
+    SpeedCustomizer.TriangleConn=RunService.Heartbeat:Connect(function()
+        if not SpeedCustomizer.Enabled or not SpeedCustomizer.UpTriangle then return end
+        local pulse=math.abs(math.sin(tick()*math.pi*0.8))
+        SpeedCustomizer.UpTriangle.TextColor3=Color3.fromRGB(math.floor(40+pulse*60),math.floor(80+pulse*100),math.floor(160+pulse*95))
+    end)
     SpeedCustomizer.HeartbeatConn=RunService.Heartbeat:Connect(function()
         if not SpeedCustomizer.Enabled or not SpeedCustomizer.character or not SpeedCustomizer.hrp or not SpeedCustomizer.hum then return end
         local md=SpeedCustomizer.hum.MoveDirection
@@ -958,17 +837,21 @@ local function enableSpeedCustomizer()
         end
     end)
 end
+
 local function disableSpeedCustomizer()
     if not SpeedCustomizer.Enabled then return end; SpeedCustomizer.Enabled=false
     if SpeedCustomizer.SpeedUI then SpeedCustomizer.SpeedUI.ToggleBtn.Text="✕  SPEED OFF" end
+    -- Stop triangle
+    if SpeedCustomizer.TriangleConn then SpeedCustomizer.TriangleConn:Disconnect(); SpeedCustomizer.TriangleConn=nil end
+    if SpeedCustomizer.UpTriangle then SpeedCustomizer.UpTriangle.TextColor3=Color3.fromRGB(60,80,160) end
     if SpeedCustomizer.HeartbeatConn then SpeedCustomizer.HeartbeatConn:Disconnect(); SpeedCustomizer.HeartbeatConn=nil end
     if SpeedCustomizer.JumpConn then SpeedCustomizer.JumpConn:Disconnect(); SpeedCustomizer.JumpConn=nil end
 end
 
 -------------------------------------------------------------------------
--- INFINITE JUMP
+-- INF JUMP
 -------------------------------------------------------------------------
-local InfiniteJump={Enabled=false,JumpConnection=nil,lastJump=0,COOLDOWN=0.3,JUMP_POWER=50}
+local InfiniteJump={Enabled=false,JUMP_POWER=50,COOLDOWN=0.15,lastJump=0,JumpConnection=nil}
 local function enableInfJump()
     if InfiniteJump.Enabled then return end; InfiniteJump.Enabled=true
     InfiniteJump.JumpConnection=UserInputService.JumpRequest:Connect(function()
@@ -1045,13 +928,14 @@ AddToggle("Protect","Anti Turret",false,function(v)
     end) else if AntiTurret.Conn then AntiTurret.Conn:Disconnect(); AntiTurret.Conn=nil end; AntiTurret.Target=nil end
 end)
 
-AddToggle("Protect","Lock Target",false,function(v) if v then enableSafeFollow() else disableSafeFollow() end end)
+-- 🎯 Lock In (renamed from Lock Target)
+AddToggle("Protect","🎯 Lock In",false,function(v) if v then enableSafeFollow() else disableSafeFollow() end end)
 AddToggle("Visual","Xray Base",false,function(v) if v then enableXrayBase() else disableXrayBase() end end)
 AddToggle("Visual","No Anim",false,function(v) if v then enableNoAnim() else disableNoAnim() end end)
 AddToggle("Visual","Player ESP",false,function(v) if v then enableESP() else disableESP() end end)
 
 -------------------------------------------------------------------------
--- TOP HUD (with Auto Grab progress bar)
+-- TOP HUD
 -------------------------------------------------------------------------
 local HudGui=Instance.new("ScreenGui"); HudGui.Name="IvoDuels_HUD"; HudGui.ResetOnSpawn=false; HudGui.DisplayOrder=999; HudGui.Parent=CoreGui
 local HudFrame=Instance.new("Frame"); HudFrame.Size=UDim2.new(0,220,0,24); HudFrame.Position=UDim2.new(0.5,-110,0,6); HudFrame.BackgroundColor3=Color3.fromRGB(11,14,20); HudFrame.BackgroundTransparency=0.2; HudFrame.BorderSizePixel=0; HudFrame.Parent=HudGui
@@ -1060,7 +944,7 @@ local HudName=Instance.new("TextLabel"); HudName.Size=UDim2.new(0.4,0,1,0); HudN
 local function makeDivider(x) local d=Instance.new("Frame"); d.Size=UDim2.new(0,1,0.6,0); d.Position=UDim2.new(x,0,0.2,0); d.BackgroundColor3=Color3.fromRGB(255,255,255); d.BackgroundTransparency=0.6; d.BorderSizePixel=0; d.Parent=HudFrame end
 makeDivider(0.4); makeDivider(0.69)
 local HudFPS=Instance.new("TextLabel"); HudFPS.Size=UDim2.new(0.28,0,1,0); HudFPS.Position=UDim2.new(0.41,0,0,0); HudFPS.BackgroundTransparency=1; HudFPS.Text="FPS: --"; HudFPS.TextColor3=Color3.fromRGB(120,255,160); HudFPS.Font=Enum.Font.GothamBold; HudFPS.TextSize=11; HudFPS.TextXAlignment=Enum.TextXAlignment.Center; HudFPS.Parent=HudFrame
-local HudPing=Instance.new("TextLabel"); HudPing.Size=UDim2.new(0.3,-8,1,0); HudPing.Position=UDim2.new(0.7,0,0,0); HudPing.BackgroundTransparency=1; HudPing.Text="Ping: --"; HudPing.TextColor3=Color3.fromRGB(120,200,255); HudFPS.Font=Enum.Font.GothamBold; HudPing.TextSize=11; HudPing.TextXAlignment=Enum.TextXAlignment.Center; HudPing.Parent=HudFrame
+local HudPing=Instance.new("TextLabel"); HudPing.Size=UDim2.new(0.3,-8,1,0); HudPing.Position=UDim2.new(0.7,0,0,0); HudPing.BackgroundTransparency=1; HudPing.Text="Ping: --"; HudPing.TextColor3=Color3.fromRGB(120,200,255); HudPing.Font=Enum.Font.GothamBold; HudPing.TextSize=11; HudPing.TextXAlignment=Enum.TextXAlignment.Center; HudPing.Parent=HudFrame
 
 local GrabBarFrame=Instance.new("Frame"); GrabBarFrame.Size=UDim2.new(0,220,0,8); GrabBarFrame.Position=UDim2.new(0.5,-110,0,34); GrabBarFrame.BackgroundColor3=Color3.fromRGB(25,25,30); GrabBarFrame.BackgroundTransparency=0.2; GrabBarFrame.BorderSizePixel=0; GrabBarFrame.Parent=HudGui
 Instance.new("UICorner",GrabBarFrame).CornerRadius=UDim.new(1,0)
@@ -1084,19 +968,14 @@ end)
 
 local grabTween=nil
 RunService.Heartbeat:Connect(function()
-    local grabbing = AutoSteal.IsStealing and AutoSteal.Enabled
-    local prog = AutoSteal.StealProgress or 0
-    local targetW = grabbing and prog or 0
+    local grabbing=AutoSteal.IsStealing and AutoSteal.Enabled
+    local prog=AutoSteal.StealProgress or 0
+    local targetW=grabbing and prog or 0
     if grabTween then grabTween:Cancel() end
     grabTween=TweenService:Create(GrabBarFill,TweenInfo.new(0.05,Enum.EasingStyle.Linear),{Size=UDim2.new(targetW,0,1,0)}); grabTween:Play()
     GrabDot.BackgroundTransparency=grabbing and (0.2+math.sin(tick()*8)*0.3) or 1
-    if grabbing then
-        GrabLabel.Text=math.floor(prog*100).."%"
-        GrabBarFill.BackgroundColor3=Color3.fromRGB(138,43,226)
-    else
-        GrabLabel.Text=AutoSteal.Enabled and "READY" or ""
-        GrabBarFill.BackgroundColor3=Color3.fromRGB(50,50,60)
-    end
+    if grabbing then GrabLabel.Text=math.floor(prog*100).."%"; GrabBarFill.BackgroundColor3=Color3.fromRGB(138,43,226)
+    else GrabLabel.Text=AutoSteal.Enabled and "READY" or ""; GrabBarFill.BackgroundColor3=Color3.fromRGB(50,50,60) end
 end)
 
 -------------------------------------------------------------------------
@@ -1132,12 +1011,8 @@ do
     ResetBtn.MouseButton1Click:Connect(function()
         MainFrame.Position=UDim2.new(0,200,0,150)
         ToggleIcon.Position=UDim2.new(0,50,0,300)
-        if SpeedCustomizer.SpeedUI and SpeedCustomizer.SpeedUI.MainFrame then
-            SpeedCustomizer.SpeedUI.MainFrame.Position=UDim2.new(0.5,-130,0.4,0)
-        end
-        if AutoWalk.MainFrame then
-            AutoWalk.MainFrame.Position=UDim2.new(0.5,-135,0.4,0)
-        end
+        if SpeedCustomizer.SpeedUI and SpeedCustomizer.SpeedUI.MainFrame then SpeedCustomizer.SpeedUI.MainFrame.Position=UDim2.new(0.5,-130,0.4,0) end
+        if AutoWalk.MainFrame then AutoWalk.MainFrame.Position=UDim2.new(0.5,-135,0.4,0) end
         ResetBtn.BackgroundColor3=Color3.fromRGB(50,200,50); ResetBtn.Text="DONE!"
         task.delay(1,function() ResetBtn.BackgroundColor3=Color3.fromRGB(200,50,50); ResetBtn.Text="RESET" end)
         autoSave()
@@ -1172,8 +1047,9 @@ end
 drag(MainFrame); drag(ToggleIcon)
 ToggleIcon.MouseButton1Click:Connect(function() MainFrame.Visible=not MainFrame.Visible end)
 
-print("Ivo Duels Script Loaded - Updated UI!")
-print("✓ Hamburger Menu Icon = ☰")
-print("✓ Speed Customizer = Upgraded UI with icons")
-print("✓ Auto Walk = ▲ Triangle indicator + colored buttons")
-print("✓ Auto Grab - May progress bar sa baba ng FPS/Ping")
+print("✓ Ivo Duels Loaded!")
+print("✓ ☰ Hamburger Menu Icon")
+print("✓ 🎯 Lock In — Dark Blue + 🔒 emoji")
+print("✓ 🌀 Spin GUI — Dark Blue floating button")
+print("✓ ▲ Triangle FIXED — Heartbeat pulse")
+print("✓ ⚡ Speed Customizer — Triangle added")
