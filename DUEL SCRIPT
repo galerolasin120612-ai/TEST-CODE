@@ -36,12 +36,91 @@ local savedPositions = {}
 
 local MainFrame, Menu
 
+-- Auto Waypoints
+local rightWaypoints = {
+    Vector3.new(-473.04, -6.99, 29.71),
+    Vector3.new(-483.57, -5.10, 18.74),
+    Vector3.new(-475.00, -6.99, 26.43),
+    Vector3.new(-474.67, -6.94, 105.48),
+}
+
+local leftWaypoints = {
+    Vector3.new(-472.49, -7.00, 90.62),
+    Vector3.new(-484.62, -5.10, 100.37),
+    Vector3.new(-475.08, -7.00, 93.29),
+    Vector3.new(-474.22, -6.96, 16.18),
+}
+
+-- Auto Walk Variables
+local AutoWalk = {
+    Enabled = false,
+    Mode = "none", -- "left", "right", "none"
+    CurrentWaypoint = 1,
+    Floating = false,
+    HeartbeatConn = nil,
+    WaitingForCountdownLeft = false,
+    WaitingForCountdownRight = false,
+    AUTO_START_DELAY = 0.7,
+    
+    -- GUI elements
+    LeftGui = nil,
+    RightGui = nil,
+    FloatGui = nil,
+    LeftBtn = nil,
+    RightBtn = nil,
+    FloatBtn = nil
+}
+
 local function autoSave()
     local lines = {}
     lines[#lines+1] = "UILocked=" .. tostring(UILocked)
     for k, v in pairs(ToggleStates) do
         lines[#lines+1] = "T_" .. tostring(k) .. "=" .. tostring(v)
     end
+    
+    -- Save Auto Walk positions
+    if AutoWalk.LeftGui and AutoWalk.LeftBtn then
+        local ap = AutoWalk.LeftBtn.AbsolutePosition
+        lines[#lines+1] = "AutoLeft_X="..math.floor(ap.X)
+        lines[#lines+1] = "AutoLeft_Y="..math.floor(ap.Y)
+    end
+    if AutoWalk.RightGui and AutoWalk.RightBtn then
+        local ap = AutoWalk.RightBtn.AbsolutePosition
+        lines[#lines+1] = "AutoRight_X="..math.floor(ap.X)
+        lines[#lines+1] = "AutoRight_Y="..math.floor(ap.Y)
+    end
+    if AutoWalk.FloatGui and AutoWalk.FloatBtn then
+        local ap = AutoWalk.FloatBtn.AbsolutePosition
+        lines[#lines+1] = "AutoFloat_X="..math.floor(ap.X)
+        lines[#lines+1] = "AutoFloat_Y="..math.floor(ap.Y)
+    end
+    
+    -- Save Lock In position
+    if SafeFollow and SafeFollow.btn then
+        local ap = SafeFollow.btn.AbsolutePosition
+        lines[#lines+1] = "LockIn_X="..math.floor(ap.X)
+        lines[#lines+1] = "LockIn_Y="..math.floor(ap.Y)
+    end
+    
+    -- Save Spin position
+    if SpinGUI and SpinGUI.Btn then
+        local ap = SpinGUI.Btn.AbsolutePosition
+        lines[#lines+1] = "Spin_X="..math.floor(ap.X)
+        lines[#lines+1] = "Spin_Y="..math.floor(ap.Y)
+    end
+    
+    -- Save Spd Set position
+    if SpdSet and SpdSet.Btn then
+        local ap = SpdSet.Btn.AbsolutePosition
+        lines[#lines+1] = "SpdSet_X="..math.floor(ap.X)
+        lines[#lines+1] = "SpdSet_Y="..math.floor(ap.Y)
+    end
+    if SpdSet and SpdSet.settingsFrame then
+        local ap = SpdSet.settingsFrame.AbsolutePosition
+        lines[#lines+1] = "SpdSetSettings_X="..math.floor(ap.X)
+        lines[#lines+1] = "SpdSetSettings_Y="..math.floor(ap.Y)
+    end
+    
     local function savePos(name, frame)
         if not frame then return end
         local ap = frame.AbsolutePosition
@@ -61,6 +140,20 @@ local function autoLoad()
         if key and val then
             if key == "UILocked" then savedUILocked = (val == "true")
             elseif key:sub(1,2) == "T_" then ToggleStates[key:sub(3)] = (val == "true")
+            elseif key == "AutoLeft_X" then savedPositions.AutoLeftX = tonumber(val)
+            elseif key == "AutoLeft_Y" then savedPositions.AutoLeftY = tonumber(val)
+            elseif key == "AutoRight_X" then savedPositions.AutoRightX = tonumber(val)
+            elseif key == "AutoRight_Y" then savedPositions.AutoRightY = tonumber(val)
+            elseif key == "AutoFloat_X" then savedPositions.AutoFloatX = tonumber(val)
+            elseif key == "AutoFloat_Y" then savedPositions.AutoFloatY = tonumber(val)
+            elseif key == "LockIn_X" then savedPositions.LockInX = tonumber(val)
+            elseif key == "LockIn_Y" then savedPositions.LockInY = tonumber(val)
+            elseif key == "Spin_X" then savedPositions.SpinX = tonumber(val)
+            elseif key == "Spin_Y" then savedPositions.SpinY = tonumber(val)
+            elseif key == "SpdSet_X" then savedPositions.SpdSetX = tonumber(val)
+            elseif key == "SpdSet_Y" then savedPositions.SpdSetY = tonumber(val)
+            elseif key == "SpdSetSettings_X" then savedPositions.SpdSetSettingsX = tonumber(val)
+            elseif key == "SpdSetSettings_Y" then savedPositions.SpdSetSettingsY = tonumber(val)
             else savedPositions[key] = tonumber(val) end
         end
     end
@@ -132,12 +225,10 @@ local function createBlackButton(name, text, position, activeColor)
     return gui, btn
 end
 
--------------------------------------------------------------------------
--- MENU BUTTON (kagaya ng Lock In GUI - black)
--------------------------------------------------------------------------
+-- Menu Button
 Menu = create("TextButton", {
     Name = "Menu",
-    Size = UDim2.new(0, 148, 0, 46), -- Same size as Lock In
+    Size = UDim2.new(0, 148, 0, 46),
     Position = UDim2.new(0.05, 0, 0.2, 0),
     BackgroundColor3 = BLACK_BG,
     Text = "Menu", 
@@ -159,9 +250,7 @@ Menu.MouseLeave:Connect(function()
     TweenService:Create(Menu, TweenInfo.new(0.15), {BackgroundColor3 = BLACK_BG}):Play()
 end)
 
--------------------------------------------------------------------------
--- MAIN FRAME
--------------------------------------------------------------------------
+-- Main Frame
 MainFrame = create("Frame", {
     Size = UDim2.new(0, 380, 0, 420),
     Position = UDim2.new(0.5, -190, 0.5, -210),
@@ -270,7 +359,390 @@ TabButtons["Combat"].TextColor3 = COLORS.TextActive
 Pages["Combat"].Visible = true
 
 -------------------------------------------------------------------------
--- LOCK IN (Safe Follow) — Black background
+-- AUTO WALK FUNCTIONS (from the script you provided)
+-------------------------------------------------------------------------
+local function isCountdownNumber(text)
+    local num = tonumber(text)
+    if num and num >= 1 and num <= 5 then return true, num end
+    return false
+end
+
+local function isTimerInCountdown(label)
+    if not label then return false end
+    local ok, num = isCountdownNumber(label.Text)
+    return ok and num >= 1 and num <= 5
+end
+
+local function getCurrentSpeed()
+    if AutoWalk.Mode == "right" then
+        if AutoWalk.CurrentWaypoint >= 3 then return 29.4 else return 60 end
+    elseif AutoWalk.Mode == "left" then
+        if AutoWalk.CurrentWaypoint >= 3 then return 29.4 else return 60 end
+    end
+    return 0
+end
+
+local function getCurrentWaypoints()
+    if AutoWalk.Mode == "right" then
+        return rightWaypoints
+    elseif AutoWalk.Mode == "left" then
+        return leftWaypoints
+    end
+    return {}
+end
+
+local function startMovement(mode)
+    AutoWalk.Mode = mode
+    AutoWalk.CurrentWaypoint = 1
+    if mode == "right" then
+        AutoWalk.RightBtn.Text = "STOP Right"
+        TweenService:Create(AutoWalk.RightBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(80, 40, 40)}):Play()
+        print("AutoRight movement started")
+    else
+        AutoWalk.LeftBtn.Text = "STOP Left"
+        TweenService:Create(AutoWalk.LeftBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(80, 40, 40)}):Play()
+        print("AutoLeft movement started")
+    end
+end
+
+local function updateWalking()
+    local char = lp.Character
+    if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChild("Humanoid")
+    if not root or not hum then return end
+    
+    local currentVel = root.AssemblyLinearVelocity
+    
+    -- Float functionality
+    if AutoWalk.Floating then
+        local raycastParams = RaycastParams.new()
+        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+        raycastParams.FilterDescendantsInstances = {char}
+        local raycastResult = workspace:Raycast(root.Position, Vector3.new(0, -50, 0), raycastParams)
+        if raycastResult then
+            local groundY = raycastResult.Position.Y
+            local targetY = groundY + 8
+            local currentY = root.Position.Y
+            local yDifference = targetY - currentY
+            if math.abs(yDifference) > 0.3 then
+                root.AssemblyLinearVelocity = Vector3.new(
+                    currentVel.X,
+                    yDifference * 15,
+                    currentVel.Z
+                )
+            else
+                root.AssemblyLinearVelocity = Vector3.new(
+                    currentVel.X,
+                    0,
+                    currentVel.Z
+                )
+            end
+        end
+    end
+    
+    -- Movement
+    if AutoWalk.Mode ~= "none" then
+        local waypoints = getCurrentWaypoints()
+        local targetPos = waypoints[AutoWalk.CurrentWaypoint]
+        local currentPos = root.Position
+        
+        local targetXZ = Vector3.new(targetPos.X, 0, targetPos.Z)
+        local currentXZ = Vector3.new(currentPos.X, 0, currentPos.Z)
+        local distanceXZ = (targetXZ - currentXZ).Magnitude
+        
+        if distanceXZ > 3 then
+            local moveDirection = (targetXZ - currentXZ).Unit
+            local currentSpeed = getCurrentSpeed()
+            root.AssemblyLinearVelocity = Vector3.new(
+                moveDirection.X * currentSpeed,
+                root.AssemblyLinearVelocity.Y,
+                moveDirection.Z * currentSpeed
+            )
+        else
+            if AutoWalk.CurrentWaypoint == #waypoints then
+                local completedMode = AutoWalk.Mode
+                AutoWalk.Mode = "none"
+                AutoWalk.CurrentWaypoint = 1
+                AutoWalk.WaitingForCountdownLeft = false
+                AutoWalk.WaitingForCountdownRight = false
+                
+                AutoWalk.RightBtn.Text = "AutoRight"
+                AutoWalk.LeftBtn.Text = "AutoLeft"
+                TweenService:Create(AutoWalk.RightBtn, TweenInfo.new(0.3), {BackgroundColor3 = BLACK_BG}):Play()
+                TweenService:Create(AutoWalk.LeftBtn, TweenInfo.new(0.3), {BackgroundColor3 = BLACK_BG}):Play()
+                
+                root.AssemblyLinearVelocity = Vector3.new(0, root.AssemblyLinearVelocity.Y, 0)
+                print("Path completed - auto stopped")
+            else
+                AutoWalk.CurrentWaypoint = AutoWalk.CurrentWaypoint + 1
+                local speed = getCurrentSpeed()
+                local modeText = (AutoWalk.Mode == "right") and "AutoRight" or "AutoLeft"
+                local speedText = (speed == 60) and "60" or "30"
+                print("heading to " .. modeText .. " spot " .. AutoWalk.CurrentWaypoint .. " @ " .. speedText)
+            end
+        end
+    end
+end
+
+-- Create Auto Walk GUIs
+local function createAutoWalkGUIs()
+    -- Auto Right GUI
+    AutoWalk.RightGui, AutoWalk.RightBtn = createBlackButton(
+        "AutoRight", 
+        "AutoRight", 
+        UDim2.new(0.5, -74, 0.6, 0),
+        Color3.fromRGB(100, 255, 100)
+    )
+    
+    -- Auto Left GUI
+    AutoWalk.LeftGui, AutoWalk.LeftBtn = createBlackButton(
+        "AutoLeft", 
+        "AutoLeft", 
+        UDim2.new(0.2, -74, 0.6, 0),
+        Color3.fromRGB(255, 100, 100)
+    )
+    
+    -- Float GUI
+    AutoWalk.FloatGui, AutoWalk.FloatBtn = createBlackButton(
+        "AutoFloat", 
+        "Float OFF", 
+        UDim2.new(0.8, -74, 0.6, 0),
+        Color3.fromRGB(100, 100, 255)
+    )
+    
+    -- Apply saved positions
+    if savedPositions.AutoRightX and savedPositions.AutoRightY then
+        AutoWalk.RightBtn.Position = UDim2.new(0, savedPositions.AutoRightX, 0, savedPositions.AutoRightY)
+    end
+    if savedPositions.AutoLeftX and savedPositions.AutoLeftY then
+        AutoWalk.LeftBtn.Position = UDim2.new(0, savedPositions.AutoLeftX, 0, savedPositions.AutoLeftY)
+    end
+    if savedPositions.AutoFloatX and savedPositions.AutoFloatY then
+        AutoWalk.FloatBtn.Position = UDim2.new(0, savedPositions.AutoFloatX, 0, savedPositions.AutoFloatY)
+    end
+    
+    -- Right button click
+    AutoWalk.RightBtn.MouseButton1Click:Connect(function()
+        if not AutoWalk.Enabled then return end
+        
+        if AutoWalk.Mode == "right" or AutoWalk.WaitingForCountdownRight then
+            AutoWalk.Mode = "none"
+            AutoWalk.CurrentWaypoint = 1
+            AutoWalk.WaitingForCountdownRight = false
+            AutoWalk.RightBtn.Text = "AutoRight"
+            TweenService:Create(AutoWalk.RightBtn, TweenInfo.new(0.3), {BackgroundColor3 = BLACK_BG}):Play()
+            AutoWalk.LeftBtn.Text = "AutoLeft"
+            TweenService:Create(AutoWalk.LeftBtn, TweenInfo.new(0.3), {BackgroundColor3 = BLACK_BG}):Play()
+            
+            local char = lp.Character
+            if char then
+                local root = char:FindFirstChild("HumanoidRootPart")
+                if root then
+                    root.AssemblyLinearVelocity = Vector3.new(0, root.AssemblyLinearVelocity.Y, 0)
+                end
+            end
+            print("AutoRight stopped")
+        else
+            -- Check for countdown
+            local success, label = pcall(function()
+                return lp.PlayerGui
+                    :FindFirstChild("DuelsMachineTopFrame") and lp.PlayerGui.DuelsMachineTopFrame
+                    :FindFirstChild("DuelsMachineTopFrame") and lp.PlayerGui.DuelsMachineTopFrame.DuelsMachineTopFrame
+                    :FindFirstChild("Timer") and lp.PlayerGui.DuelsMachineTopFrame.DuelsMachineTopFrame.Timer
+                    :FindFirstChild("Label")
+            end)
+            
+            if success and label and isTimerInCountdown(label) then
+                AutoWalk.WaitingForCountdownRight = true
+                AutoWalk.RightBtn.Text = "Waiting..."
+                TweenService:Create(AutoWalk.RightBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(255, 200, 50)}):Play()
+                AutoWalk.LeftBtn.Text = "AutoLeft"
+                TweenService:Create(AutoWalk.LeftBtn, TweenInfo.new(0.3), {BackgroundColor3 = BLACK_BG}):Play()
+                print("AutoRight waiting for countdown")
+            else
+                startMovement("right")
+            end
+        end
+    end)
+    
+    -- Left button click
+    AutoWalk.LeftBtn.MouseButton1Click:Connect(function()
+        if not AutoWalk.Enabled then return end
+        
+        if AutoWalk.Mode == "left" or AutoWalk.WaitingForCountdownLeft then
+            AutoWalk.Mode = "none"
+            AutoWalk.CurrentWaypoint = 1
+            AutoWalk.WaitingForCountdownLeft = false
+            AutoWalk.LeftBtn.Text = "AutoLeft"
+            TweenService:Create(AutoWalk.LeftBtn, TweenInfo.new(0.3), {BackgroundColor3 = BLACK_BG}):Play()
+            AutoWalk.RightBtn.Text = "AutoRight"
+            TweenService:Create(AutoWalk.RightBtn, TweenInfo.new(0.3), {BackgroundColor3 = BLACK_BG}):Play()
+            
+            local char = lp.Character
+            if char then
+                local root = char:FindFirstChild("HumanoidRootPart")
+                if root then
+                    root.AssemblyLinearVelocity = Vector3.new(0, root.AssemblyLinearVelocity.Y, 0)
+                end
+            end
+            print("AutoLeft stopped")
+        else
+            -- Check for countdown
+            local success, label = pcall(function()
+                return lp.PlayerGui
+                    :FindFirstChild("DuelsMachineTopFrame") and lp.PlayerGui.DuelsMachineTopFrame
+                    :FindFirstChild("DuelsMachineTopFrame") and lp.PlayerGui.DuelsMachineTopFrame.DuelsMachineTopFrame
+                    :FindFirstChild("Timer") and lp.PlayerGui.DuelsMachineTopFrame.DuelsMachineTopFrame.Timer
+                    :FindFirstChild("Label")
+            end)
+            
+            if success and label and isTimerInCountdown(label) then
+                AutoWalk.WaitingForCountdownLeft = true
+                AutoWalk.LeftBtn.Text = "Waiting..."
+                TweenService:Create(AutoWalk.LeftBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(255, 200, 50)}):Play()
+                AutoWalk.RightBtn.Text = "AutoRight"
+                TweenService:Create(AutoWalk.RightBtn, TweenInfo.new(0.3), {BackgroundColor3 = BLACK_BG}):Play()
+                print("AutoLeft waiting for countdown")
+            else
+                startMovement("left")
+            end
+        end
+    end)
+    
+    -- Float button click
+    AutoWalk.FloatBtn.MouseButton1Click:Connect(function()
+        if not AutoWalk.Enabled then return end
+        
+        AutoWalk.Floating = not AutoWalk.Floating
+        if AutoWalk.Floating then
+            AutoWalk.FloatBtn.Text = "Float ON"
+            AutoWalk.FloatBtn.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
+            print("Float ON")
+        else
+            AutoWalk.FloatBtn.Text = "Float OFF"
+            AutoWalk.FloatBtn.BackgroundColor3 = BLACK_BG
+            local char = lp.Character
+            if char then
+                local root = char:FindFirstChild("HumanoidRootPart")
+                if root then
+                    root.AssemblyLinearVelocity = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z)
+                end
+            end
+            print("Float OFF")
+        end
+    end)
+    
+    -- Countdown detection
+    local function onTextChanged(label)
+        local text = label.Text
+        local ok, number = isCountdownNumber(text)
+        if ok then
+            print("Countdown detected:", number)
+            if number == 1 then
+                if AutoWalk.WaitingForCountdownLeft then
+                    print("Countdown finished! Starting auto left in", AutoWalk.AUTO_START_DELAY, "seconds")
+                    task.wait(AutoWalk.AUTO_START_DELAY)
+                    AutoWalk.WaitingForCountdownLeft = false
+                    startMovement("left")
+                end
+                if AutoWalk.WaitingForCountdownRight then
+                    print("Countdown finished! Starting auto right in", AutoWalk.AUTO_START_DELAY, "seconds")
+                    task.wait(AutoWalk.AUTO_START_DELAY)
+                    AutoWalk.WaitingForCountdownRight = false
+                    startMovement("right")
+                end
+            end
+        end
+    end
+    
+    -- Setup countdown detection
+    task.spawn(function()
+        local success, label = pcall(function()
+            return lp.PlayerGui
+                :FindFirstChild("DuelsMachineTopFrame") and lp.PlayerGui.DuelsMachineTopFrame
+                :FindFirstChild("DuelsMachineTopFrame") and lp.PlayerGui.DuelsMachineTopFrame.DuelsMachineTopFrame
+                :FindFirstChild("Timer") and lp.PlayerGui.DuelsMachineTopFrame.DuelsMachineTopFrame.Timer
+                :FindFirstChild("Label")
+        end)
+        if success and label then
+            print("Timer label found! Countdown detection enabled.")
+            onTextChanged(label)
+            label:GetPropertyChangedSignal("Text"):Connect(function()
+                onTextChanged(label)
+            end)
+        else
+            print("Timer label not found. Auto movements will start immediately.")
+        end
+    end)
+end
+
+local function enableAutoWalk()
+    AutoWalk.Enabled = true
+    if not AutoWalk.RightGui then
+        createAutoWalkGUIs()
+    end
+    AutoWalk.RightGui.Enabled = true
+    AutoWalk.LeftGui.Enabled = true
+    AutoWalk.FloatGui.Enabled = true
+    
+    -- Start heartbeat
+    if AutoWalk.HeartbeatConn then
+        AutoWalk.HeartbeatConn:Disconnect()
+    end
+    AutoWalk.HeartbeatConn = RunService.Heartbeat:Connect(updateWalking)
+end
+
+local function disableAutoWalk()
+    AutoWalk.Enabled = false
+    AutoWalk.Mode = "none"
+    AutoWalk.CurrentWaypoint = 1
+    AutoWalk.WaitingForCountdownLeft = false
+    AutoWalk.WaitingForCountdownRight = false
+    AutoWalk.Floating = false
+    
+    if AutoWalk.RightGui then
+        AutoWalk.RightGui.Enabled = false
+        AutoWalk.LeftGui.Enabled = false
+        AutoWalk.FloatGui.Enabled = false
+    end
+    
+    if AutoWalk.HeartbeatConn then
+        AutoWalk.HeartbeatConn:Disconnect()
+        AutoWalk.HeartbeatConn = nil
+    end
+    
+    -- Stop movement
+    local char = lp.Character
+    if char then
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if root then
+            root.AssemblyLinearVelocity = Vector3.new(0, root.AssemblyLinearVelocity.Y, 0)
+        end
+    end
+end
+
+-- Character added connection
+lp.CharacterAdded:Connect(function()
+    task.wait(1)
+    AutoWalk.Mode = "none"
+    AutoWalk.CurrentWaypoint = 1
+    AutoWalk.WaitingForCountdownLeft = false
+    AutoWalk.WaitingForCountdownRight = false
+    AutoWalk.Floating = false
+    
+    if AutoWalk.RightBtn then
+        AutoWalk.RightBtn.Text = "AutoRight"
+        AutoWalk.LeftBtn.Text = "AutoLeft"
+        AutoWalk.FloatBtn.Text = "Float OFF"
+        TweenService:Create(AutoWalk.RightBtn, TweenInfo.new(0.3), {BackgroundColor3 = BLACK_BG}):Play()
+        TweenService:Create(AutoWalk.LeftBtn, TweenInfo.new(0.3), {BackgroundColor3 = BLACK_BG}):Play()
+        AutoWalk.FloatBtn.BackgroundColor3 = BLACK_BG
+    end
+end)
+
+-------------------------------------------------------------------------
+-- LOCK IN (Safe Follow)
 -------------------------------------------------------------------------
 local SafeFollow = {
     Enabled = false,
@@ -292,6 +764,10 @@ local function createSafeFollowUI()
         UDim2.new(0.5, -74, 0.8, 0),
         Color3.fromRGB(40, 80, 220)
     )
+    
+    if savedPositions.LockInX and savedPositions.LockInY then
+        SafeFollow.btn.Position = UDim2.new(0, savedPositions.LockInX, 0, savedPositions.LockInY)
+    end
 
     SafeFollow.btn.MouseButton1Click:Connect(function()
         SafeFollow.Locked = not SafeFollow.Locked
@@ -477,7 +953,7 @@ local function autoStealSetEnabled(state)
 end
 
 -------------------------------------------------------------------------
--- SPIN GUI — Black background na
+-- SPIN GUI
 -------------------------------------------------------------------------
 local Spin = {Enabled=false, Active=false, Speed=30, Conn=nil}
 local SpinGUI = {Gui=nil, Btn=nil}
@@ -489,6 +965,10 @@ local function createSpinGUI()
         UDim2.new(0.5, -74, 0.7, 0),
         Color3.fromRGB(30, 70, 210)
     )
+    
+    if savedPositions.SpinX and savedPositions.SpinY then
+        SpinGUI.Btn.Position = UDim2.new(0, savedPositions.SpinX, 0, savedPositions.SpinY)
+    end
 
     SpinGUI.Btn.MouseButton1Click:Connect(function()
         Spin.Active = not Spin.Active
@@ -544,12 +1024,14 @@ local function disableSpin()
 end
 
 -------------------------------------------------------------------------
--- SPD SET GUI (Speed Customizer) — May GUI na kagaya ng Lock In
+-- SPD SET (Speed Customizer)
 -------------------------------------------------------------------------
 local SpdSet = {
     Enabled = false,
     Gui = nil,
     Btn = nil,
+    settingsGui = nil,
+    settingsFrame = nil,
     SpeedValue = 58,
     StealValue = 29,
     JumpValue = 50,
@@ -568,7 +1050,7 @@ local function setupSpdSetCharacter(char)
 end
 
 local function createSpdSetUI()
-    -- Main GUI Button (kagaya ng Lock In)
+    -- Main GUI Button
     SpdSet.Gui, SpdSet.Btn = createBlackButton(
         "SpdSet", 
         "⚡ SPD: OFF", 
@@ -576,7 +1058,11 @@ local function createSpdSetUI()
         Color3.fromRGB(255, 200, 0)
     )
     
-    -- Settings Frame (lalabas kapag clinick ang button)
+    if savedPositions.SpdSetX and savedPositions.SpdSetY then
+        SpdSet.Btn.Position = UDim2.new(0, savedPositions.SpdSetX, 0, savedPositions.SpdSetY)
+    end
+    
+    -- Settings Frame
     local settingsGui = Instance.new("ScreenGui")
     settingsGui.Name = "SpdSetSettings"
     settingsGui.ResetOnSpawn = false
@@ -596,6 +1082,10 @@ local function createSpdSetUI()
     local sfStroke = Instance.new("UIStroke", settingsFrame)
     sfStroke.Color = Color3.fromRGB(255, 200, 0)
     sfStroke.Thickness = 2
+    
+    if savedPositions.SpdSetSettingsX and savedPositions.SpdSetSettingsY then
+        settingsFrame.Position = UDim2.new(0, savedPositions.SpdSetSettingsX, 0, savedPositions.SpdSetSettingsY)
+    end
     
     -- Header
     local header = Instance.new("Frame")
@@ -666,11 +1156,9 @@ local function createSpdSetUI()
     local jumpBox = createInputRow(settingsFrame, "▲", "Jump", SpdSet.JumpValue, 150)
     local downBox = createInputRow(settingsFrame, "▼", "Down Spd", SpdSet.DownValue, 195)
     
-    -- Save to SpdSet
     SpdSet.settingsGui = settingsGui
     SpdSet.settingsFrame = settingsFrame
     
-    -- Button click toggles main enable/disable
     SpdSet.Btn.MouseButton1Click:Connect(function()
         SpdSet.Enabled = not SpdSet.Enabled
         SpdSet.Btn.Text = SpdSet.Enabled and "⚡ SPD: ON" or "⚡ SPD: OFF"
@@ -678,32 +1166,12 @@ local function createSpdSetUI()
             BackgroundColor3 = SpdSet.Enabled and Color3.fromRGB(0, 120, 215) or BLACK_BG
         }):Play()
         
-        -- Show settings when enabled
         if SpdSet.Enabled then
             settingsGui.Enabled = true
         else
             settingsGui.Enabled = false
         end
     end)
-    
-    -- Input validation
-    local function validate(box, min, max, setFunc)
-        box.FocusLost:Connect(function()
-            local num = tonumber(box.Text)
-            if num then
-                num = math.clamp(num, min, max)
-                box.Text = tostring(num)
-                setFunc(num)
-            else
-                box.Text = tostring(setFunc())
-            end
-        end)
-    end
-    
-    validate(speedBox, 1, 200, function() return SpdSet.SpeedValue end)
-    validate(stealBox, 1, 200, function() return SpdSet.StealValue end)
-    validate(jumpBox, 1, 200, function() return SpdSet.JumpValue end)
-    validate(downBox, 1, 200, function() return SpdSet.DownValue end)
     
     speedBox.FocusLost:Connect(function()
         local num = tonumber(speedBox.Text)
@@ -840,321 +1308,6 @@ local function EnableAntiRagdoll()
     task.spawn(v1HeartbeatLoop)
 end
 local function DisableAntiRagdoll() antiRagdollMode=nil; disconnectAllRagdoll(); cachedCharData={} end
-
--------------------------------------------------------------------------
--- AUTO WALK - AYOS NA VERSION (Tatlong GUI)
--------------------------------------------------------------------------
-local AutoWalk = {
-    Enabled = false,
-    LeftActive = false,
-    RightActive = false,
-    AutoActive = false,
-    
-    -- Paths
-    Path1 = {Vector3.new(-470.6,-5.9,34.4), Vector3.new(-484.2,-3.9,21.4), Vector3.new(-475.6,-5.8,29.3), Vector3.new(-473.4,-5.9,111)},
-    Path2 = {Vector3.new(-474.7,-5.9,91.0), Vector3.new(-483.4,-3.9,97.3), Vector3.new(-474.7,-5.9,91.0), Vector3.new(-476.1,-5.5,25.4)},
-    Speed1 = 58.37,
-    Speed2 = 29.4,
-    JumpPower = 50,
-    
-    -- GUI elements
-    LeftGui = nil,
-    RightGui = nil,
-    AutoGui = nil,
-    LeftBtn = nil,
-    RightBtn = nil,
-    AutoBtn = nil,
-    
-    -- Movement coroutines
-    LeftCoroutine = nil,
-    RightCoroutine = nil,
-    AutoCoroutine = nil
-}
-
--- Create Auto Walk GUIs (black background, kagaya ng Lock In)
-local function createAutoWalkGUIs()
-    -- Auto Left GUI
-    AutoWalk.LeftGui, AutoWalk.LeftBtn = createBlackButton(
-        "AutoLeft", 
-        "◀ AUTO LEFT", 
-        UDim2.new(0.2, -74, 0.6, 0),
-        Color3.fromRGB(255, 100, 100)
-    )
-    
-    -- Auto Right GUI
-    AutoWalk.RightGui, AutoWalk.RightBtn = createBlackButton(
-        "AutoRight", 
-        "▶ AUTO RIGHT", 
-        UDim2.new(0.5, -74, 0.6, 0),
-        Color3.fromRGB(100, 255, 100)
-    )
-    
-    -- Auto Play GUI
-    AutoWalk.AutoGui, AutoWalk.AutoBtn = createBlackButton(
-        "AutoPlay", 
-        "▲ AUTO PLAY", 
-        UDim2.new(0.8, -74, 0.6, 0),
-        Color3.fromRGB(255, 255, 100)
-    )
-    
-    -- Left button click
-    AutoWalk.LeftBtn.MouseButton1Click:Connect(function()
-        if not AutoWalk.Enabled then return end
-        
-        -- Toggle left mode
-        AutoWalk.LeftActive = not AutoWalk.LeftActive
-        if AutoWalk.LeftActive then
-            AutoWalk.RightActive = false
-            AutoWalk.AutoActive = false
-        end
-        
-        updateAutoWalkButtons()
-        startAutoWalkMovement()
-    end)
-    
-    -- Right button click
-    AutoWalk.RightBtn.MouseButton1Click:Connect(function()
-        if not AutoWalk.Enabled then return end
-        
-        -- Toggle right mode
-        AutoWalk.RightActive = not AutoWalk.RightActive
-        if AutoWalk.RightActive then
-            AutoWalk.LeftActive = false
-            AutoWalk.AutoActive = false
-        end
-        
-        updateAutoWalkButtons()
-        startAutoWalkMovement()
-    end)
-    
-    -- Auto Play button click
-    AutoWalk.AutoBtn.MouseButton1Click:Connect(function()
-        if not AutoWalk.Enabled then return end
-        
-        -- Toggle auto mode
-        AutoWalk.AutoActive = not AutoWalk.AutoActive
-        if AutoWalk.AutoActive then
-            AutoWalk.LeftActive = false
-            AutoWalk.RightActive = false
-        end
-        
-        updateAutoWalkButtons()
-        startAutoWalkMovement()
-    end)
-end
-
-local function updateAutoWalkButtons()
-    -- Update Left button
-    if AutoWalk.LeftActive then
-        AutoWalk.LeftBtn.Text = "◀ LEFT: ON"
-        TweenService:Create(AutoWalk.LeftBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(200, 40, 40)}):Play()
-    else
-        AutoWalk.LeftBtn.Text = "◀ AUTO LEFT"
-        TweenService:Create(AutoWalk.LeftBtn, TweenInfo.new(0.15), {BackgroundColor3 = BLACK_BG}):Play()
-    end
-    
-    -- Update Right button
-    if AutoWalk.RightActive then
-        AutoWalk.RightBtn.Text = "▶ RIGHT: ON"
-        TweenService:Create(AutoWalk.RightBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(40, 200, 40)}):Play()
-    else
-        AutoWalk.RightBtn.Text = "▶ AUTO RIGHT"
-        TweenService:Create(AutoWalk.RightBtn, TweenInfo.new(0.15), {BackgroundColor3 = BLACK_BG}):Play()
-    end
-    
-    -- Update Auto button
-    if AutoWalk.AutoActive then
-        AutoWalk.AutoBtn.Text = "▲ PLAY: ON"
-        TweenService:Create(AutoWalk.AutoBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(200, 200, 40)}):Play()
-    else
-        AutoWalk.AutoBtn.Text = "▲ AUTO PLAY"
-        TweenService:Create(AutoWalk.AutoBtn, TweenInfo.new(0.15), {BackgroundColor3 = BLACK_BG}):Play()
-    end
-end
-
-local function moveToPoint(hrp, target, speed)
-    local pos = hrp.Position
-    local dir = (target - pos) * Vector3.new(1, 0, 1)
-    if dir.Magnitude <= 3 then
-        hrp.AssemblyLinearVelocity = Vector3.new(0, hrp.AssemblyLinearVelocity.Y, 0)
-        return true
-    end
-    local moveDir = dir.Unit * speed
-    hrp.AssemblyLinearVelocity = Vector3.new(moveDir.X, hrp.AssemblyLinearVelocity.Y, moveDir.Z)
-    return false
-end
-
-local function runLeftPath()
-    while AutoWalk.Enabled and AutoWalk.LeftActive do
-        local char = lp.Character
-        if not char then break end
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if not hrp then break end
-        
-        for i = 1, #AutoWalk.Path1 do
-            if not AutoWalk.Enabled or not AutoWalk.LeftActive then break end
-            local target = AutoWalk.Path1[i]
-            local speed = (i > 2) and AutoWalk.Speed2 or AutoWalk.Speed1
-            
-            while AutoWalk.Enabled and AutoWalk.LeftActive do
-                local reached = moveToPoint(hrp, target, speed)
-                if reached then break end
-                task.wait()
-            end
-            
-            if i == 2 and AutoWalk.Enabled and AutoWalk.LeftActive then
-                hrp.AssemblyLinearVelocity = Vector3.new(hrp.AssemblyLinearVelocity.X, AutoWalk.JumpPower, hrp.AssemblyLinearVelocity.Z)
-                task.wait(0.35)
-            end
-            task.wait(0.1)
-        end
-        task.wait(0.5)
-    end
-end
-
-local function runRightPath()
-    while AutoWalk.Enabled and AutoWalk.RightActive do
-        local char = lp.Character
-        if not char then break end
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if not hrp then break end
-        
-        for i = 1, #AutoWalk.Path2 do
-            if not AutoWalk.Enabled or not AutoWalk.RightActive then break end
-            local target = AutoWalk.Path2[i]
-            local speed = (i > 2) and AutoWalk.Speed2 or AutoWalk.Speed1
-            
-            while AutoWalk.Enabled and AutoWalk.RightActive do
-                local reached = moveToPoint(hrp, target, speed)
-                if reached then break end
-                task.wait()
-            end
-            
-            if i == 2 and AutoWalk.Enabled and AutoWalk.RightActive then
-                hrp.AssemblyLinearVelocity = Vector3.new(hrp.AssemblyLinearVelocity.X, AutoWalk.JumpPower, hrp.AssemblyLinearVelocity.Z)
-                task.wait(0.35)
-            end
-            task.wait(0.1)
-        end
-        task.wait(0.5)
-    end
-end
-
-local function runAutoPath()
-    while AutoWalk.Enabled and AutoWalk.AutoActive do
-        local char = lp.Character
-        if not char then break end
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if not hrp then break end
-        
-        -- Choose path based on position
-        local path = (hrp.Position.Z < 60) and AutoWalk.Path2 or AutoWalk.Path1
-        
-        for i = 1, #path do
-            if not AutoWalk.Enabled or not AutoWalk.AutoActive then break end
-            local target = path[i]
-            local speed = (i > 2) and AutoWalk.Speed2 or AutoWalk.Speed1
-            
-            while AutoWalk.Enabled and AutoWalk.AutoActive do
-                local reached = moveToPoint(hrp, target, speed)
-                if reached then break end
-                task.wait()
-            end
-            
-            if i == 2 and AutoWalk.Enabled and AutoWalk.AutoActive then
-                hrp.AssemblyLinearVelocity = Vector3.new(hrp.AssemblyLinearVelocity.X, AutoWalk.JumpPower, hrp.AssemblyLinearVelocity.Z)
-                task.wait(0.35)
-            end
-            task.wait(0.1)
-        end
-        task.wait(0.5)
-    end
-end
-
-local function startAutoWalkMovement()
-    -- Stop existing coroutines
-    if AutoWalk.LeftCoroutine then
-        coroutine.close(AutoWalk.LeftCoroutine)
-        AutoWalk.LeftCoroutine = nil
-    end
-    if AutoWalk.RightCoroutine then
-        coroutine.close(AutoWalk.RightCoroutine)
-        AutoWalk.RightCoroutine = nil
-    end
-    if AutoWalk.AutoCoroutine then
-        coroutine.close(AutoWalk.AutoCoroutine)
-        AutoWalk.AutoCoroutine = nil
-    end
-    
-    -- Stop velocity
-    local char = lp.Character
-    if char and char:FindFirstChild("HumanoidRootPart") then
-        char.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero
-    end
-    
-    -- Start new coroutine based on active mode
-    task.wait(0.1)
-    
-    if AutoWalk.LeftActive then
-        AutoWalk.LeftCoroutine = coroutine.create(runLeftPath)
-        coroutine.resume(AutoWalk.LeftCoroutine)
-    elseif AutoWalk.RightActive then
-        AutoWalk.RightCoroutine = coroutine.create(runRightPath)
-        coroutine.resume(AutoWalk.RightCoroutine)
-    elseif AutoWalk.AutoActive then
-        AutoWalk.AutoCoroutine = coroutine.create(runAutoPath)
-        coroutine.resume(AutoWalk.AutoCoroutine)
-    end
-end
-
-local function stopAutoWalk()
-    AutoWalk.LeftActive = false
-    AutoWalk.RightActive = false
-    AutoWalk.AutoActive = false
-    
-    -- Stop coroutines
-    if AutoWalk.LeftCoroutine then
-        coroutine.close(AutoWalk.LeftCoroutine)
-        AutoWalk.LeftCoroutine = nil
-    end
-    if AutoWalk.RightCoroutine then
-        coroutine.close(AutoWalk.RightCoroutine)
-        AutoWalk.RightCoroutine = nil
-    end
-    if AutoWalk.AutoCoroutine then
-        coroutine.close(AutoWalk.AutoCoroutine)
-        AutoWalk.AutoCoroutine = nil
-    end
-    
-    -- Stop velocity
-    local char = lp.Character
-    if char and char:FindFirstChild("HumanoidRootPart") then
-        char.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero
-    end
-    
-    -- Update buttons
-    updateAutoWalkButtons()
-end
-
-local function enableAutoWalk()
-    AutoWalk.Enabled = true
-    if not AutoWalk.LeftGui then
-        createAutoWalkGUIs()
-    end
-    AutoWalk.LeftGui.Enabled = true
-    AutoWalk.RightGui.Enabled = true
-    AutoWalk.AutoGui.Enabled = true
-end
-
-local function disableAutoWalk()
-    AutoWalk.Enabled = false
-    stopAutoWalk()
-    if AutoWalk.LeftGui then
-        AutoWalk.LeftGui.Enabled = false
-        AutoWalk.RightGui.Enabled = false
-        AutoWalk.AutoGui.Enabled = false
-    end
-end
 
 -------------------------------------------------------------------------
 -- XRAY BASE
@@ -1372,6 +1525,47 @@ do
     end)
 end
 
+-- SAVE POSITIONS BUTTON
+do
+    local SavePosRow = create("Frame", {Size = UDim2.new(0.92, 0, 0, 50), BackgroundColor3 = COLORS.RowBG, BackgroundTransparency = 0.5, Parent = Pages["Settings"]})
+    create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = SavePosRow})
+    create("UIStroke", {Color = COLORS.Border, Thickness = 1, Transparency = 0.8, Parent = SavePosRow})
+    
+    create("TextLabel", {
+        Text = "Save Positions", 
+        Size = UDim2.new(0.6, 0, 1, 0), 
+        Position = UDim2.new(0.05, 0, 0, 0), 
+        TextColor3 = Color3.new(1,1,1), 
+        Font = "GothamBold", 
+        TextSize = 13, 
+        BackgroundTransparency = 1, 
+        TextXAlignment = "Left", 
+        Parent = SavePosRow
+    })
+    
+    local SaveBtn = create("TextButton", {
+        Size = UDim2.new(0, 70, 0, 30),
+        Position = UDim2.new(0.7, 0, 0.5, -15),
+        BackgroundColor3 = Color3.fromRGB(40, 80, 40),
+        Text = "SAVE",
+        TextColor3 = Color3.new(1,1,1),
+        Font = "GothamBold",
+        TextSize = 12,
+        Parent = SavePosRow
+    })
+    create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = SaveBtn})
+    
+    SaveBtn.MouseButton1Click:Connect(function()
+        autoSave()
+        SaveBtn.Text = "SAVED!"
+        SaveBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 40)
+        task.delay(1, function()
+            SaveBtn.Text = "SAVE"
+            SaveBtn.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
+        end)
+    end)
+end
+
 -- Lock UI Toggle
 local LockTglBg2,LockCircle2
 do
@@ -1387,11 +1581,12 @@ do
         TweenService:Create(LockCircle2,TweenInfo.new(0.2),{Position=locked and UDim2.new(0.55,0,0.1,0) or UDim2.new(0.1,0,0.1,0)}):Play()
         if SafeFollow.btn then SafeFollow.btn.Active=not locked end
         if SpdSet.settingsFrame then SpdSet.settingsFrame.Draggable=not locked end
-        if AutoWalk.LeftGui then 
-            AutoWalk.LeftBtn.Active=not locked
+        if AutoWalk.RightBtn then 
             AutoWalk.RightBtn.Active=not locked
-            AutoWalk.AutoBtn.Active=not locked
+            AutoWalk.LeftBtn.Active=not locked
+            AutoWalk.FloatBtn.Active=not locked
         end
+        if SpinGUI.Btn then SpinGUI.Btn.Active=not locked end
         autoSave()
     end
     LockBtn.MouseButton1Click:Connect(function() applyLockState(not UILocked) end)
@@ -1408,12 +1603,25 @@ do
     ResetBtn.MouseButton1Click:Connect(function()
         MainFrame.Position=UDim2.new(0,200,0,150)
         Menu.Position=UDim2.new(0,50,0,300)
-        if SpdSet.settingsFrame then SpdSet.settingsFrame.Position=UDim2.new(0.5,-130,0.4,0) end
-        if AutoWalk.LeftGui then
-            AutoWalk.LeftBtn.Position=UDim2.new(0.2, -74, 0.6, 0)
-            AutoWalk.RightBtn.Position=UDim2.new(0.5, -74, 0.6, 0)
-            AutoWalk.AutoBtn.Position=UDim2.new(0.8, -74, 0.6, 0)
+        
+        if SpdSet.settingsFrame then 
+            SpdSet.settingsFrame.Position=UDim2.new(0.5,-130,0.4,0)
         end
+        if SpdSet.Btn then
+            SpdSet.Btn.Position=UDim2.new(0.5,-74,0.65,0)
+        end
+        if AutoWalk.RightBtn then
+            AutoWalk.RightBtn.Position=UDim2.new(0.5,-74,0.6,0)
+            AutoWalk.LeftBtn.Position=UDim2.new(0.2,-74,0.6,0)
+            AutoWalk.FloatBtn.Position=UDim2.new(0.8,-74,0.6,0)
+        end
+        if SafeFollow.btn then
+            SafeFollow.btn.Position=UDim2.new(0.5,-74,0.8,0)
+        end
+        if SpinGUI.Btn then
+            SpinGUI.Btn.Position=UDim2.new(0.5,-74,0.7,0)
+        end
+        
         ResetBtn.BackgroundColor3=Color3.fromRGB(50,200,50); ResetBtn.Text="DONE!"
         task.delay(1,function() ResetBtn.BackgroundColor3=Color3.fromRGB(200,50,50); ResetBtn.Text="RESET" end)
         autoSave()
@@ -1493,11 +1701,11 @@ drag(MainFrame); drag(Menu)
 Menu.MouseButton1Click:Connect(function() MainFrame.Visible=not MainFrame.Visible end)
 
 print("✓ Ivo Duels Loaded!")
-print("✓ Menu Button - kagaya ng Lock In GUI (black background)")
-print("✓ Spd Set - may GUI na kagaya ng Lock In (black background)")
-print("✓ Auto Walk - TATLONG GUI (Auto Left, Auto Right, Auto Play) - WORKING NA!")
-print("✓ Auto Walk GUI - black background, kagaya ng Lock In")
-print("✓ Spin GUI - black background na rin")
+print("✓ Menu Button - kagaya ng Lock In GUI")
+print("✓ Auto Walk - Auto Left at Auto Right GUI (kagaya ng Lock In)")
+print("✓ Float Button - para sa floating")
+print("✓ Spd Set - may GUI na kagaya ng Lock In")
+print("✓ Spin GUI - black background")
 print("✓ Lock In GUI - black background")
-print("✓ Dark Blue Sidebar")
-print("✓ Lock Speed Config - Settings tab (Default: 54)")
+print("✓ Save Positions - nasa Settings tab (SAVE button)")
+print("✓ Auto-save - awtomatikong nagse-save ng positions")
