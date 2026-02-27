@@ -155,27 +155,6 @@ local function AddToggle(pageName, labelText, default, callback)
     return TglBg, Circle
 end
 
-local function AddButton(pageName, buttonText, callback)
-    local Row = create("Frame", {Size = UDim2.new(0.92, 0, 0, 50), BackgroundColor3 = COLORS.RowBG, BackgroundTransparency = 0.5, Parent = Pages[pageName]})
-    create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = Row})
-    create("UIStroke", {Color = COLORS.Border, Thickness = 1, Transparency = 0.8, Parent = Row})
-    
-    local Btn = create("TextButton", {
-        Size = UDim2.new(0.8, 0, 0, 30), 
-        Position = UDim2.new(0.1, 0, 0.5, -15),
-        BackgroundColor3 = Color3.fromRGB(43, 160, 235), 
-        Text = buttonText, 
-        TextColor3 = Color3.new(1,1,1), 
-        Font = "GothamBold", 
-        TextSize = 13,
-        Parent = Row
-    })
-    create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = Btn})
-    
-    Btn.MouseButton1Click:Connect(callback)
-    return Btn
-end
-
 for _, tab in ipairs({"Combat", "Protect", "Visual", "Settings"}) do CreatePage(tab) end
 TabButtons["Combat"].TextColor3 = COLORS.TextActive
 Pages["Combat"].Visible = true
@@ -282,13 +261,16 @@ local function disableSafeFollow()
 end
 
 -------------------------------------------------------------------------
--- AUTO STEAL (NO GUI - Combat tab lang)
+-- AUTO STEAL (with progress bar sa HUD)
 -------------------------------------------------------------------------
 local AutoSteal = {
     Enabled = false,
     Cooldown = 0.2,
     HoldDuration = 0.5,
-    LoopCoroutine = nil
+    LoopCoroutine = nil,
+    IsStealing = false,
+    StealProgress = 0,
+    CurrentTarget = nil
 }
 
 local function autoStealGetCharacter()
@@ -332,21 +314,38 @@ end
 local function autoStealTriggerPrompt(prompt)
     if not prompt or not prompt:IsDescendantOf(Workspace) then return end
     
+    AutoSteal.IsStealing = true
+    AutoSteal.StealProgress = 0
+    
     prompt.MaxActivationDistance = 9e9
     prompt.RequiresLineOfSight = false
     prompt.ClickablePrompt = true
     
-    local usedFire = pcall(function()
-        fireproximityprompt(prompt, 9e9, AutoSteal.HoldDuration)
-    end)
-    
-    if not usedFire then
-        pcall(function()
-            prompt:InputHoldBegin()
-            task.wait(AutoSteal.HoldDuration)
-            prompt:InputHoldEnd()
-        end)
+    -- Simulate hold progress
+    local startTime = tick()
+    while tick() - startTime < AutoSteal.HoldDuration and AutoSteal.Enabled do
+        AutoSteal.StealProgress = (tick() - startTime) / AutoSteal.HoldDuration
+        task.wait(0.03)
     end
+    
+    if AutoSteal.Enabled then
+        local usedFire = pcall(function()
+            fireproximityprompt(prompt, 9e9, AutoSteal.HoldDuration)
+        end)
+        
+        if not usedFire then
+            pcall(function()
+                prompt:InputHoldBegin()
+                task.wait(AutoSteal.HoldDuration)
+                prompt:InputHoldEnd()
+            end)
+        end
+    end
+    
+    AutoSteal.StealProgress = 1
+    task.wait(0.1)
+    AutoSteal.IsStealing = false
+    AutoSteal.StealProgress = 0
 end
 
 local function autoStealLoop()
@@ -368,6 +367,8 @@ local function autoStealSetEnabled(state)
     if state == AutoSteal.Enabled then return end
     
     AutoSteal.Enabled = state
+    AutoSteal.IsStealing = false
+    AutoSteal.StealProgress = 0
     
     if AutoSteal.Enabled then
         AutoSteal.LoopCoroutine = coroutine.create(autoStealLoop)
@@ -473,111 +474,140 @@ end
 local function DisableAntiRagdoll() antiRagdollMode=nil; disconnectAllRagdoll(); cachedCharData={} end
 
 -------------------------------------------------------------------------
--- AUTO WALK (NEW GUI like Speed Customizer)
+-- AUTO WALK (FIXED VERSION)
 -------------------------------------------------------------------------
 local AutoWalk = {
     Enabled = false,
     Active = false,
-    Path1 = {{pos=Vector3.new(-470.6,-5.9,34.4)},{pos=Vector3.new(-484.2,-3.9,21.4)},{pos=Vector3.new(-475.6,-5.8,29.3)},{pos=Vector3.new(-473.4,-5.9,111)}},
-    Path2 = {{pos=Vector3.new(-474.7,-5.9,91.0)},{pos=Vector3.new(-483.4,-3.9,97.3)},{pos=Vector3.new(-474.7,-5.9,91.0)},{pos=Vector3.new(-476.1,-5.5,25.4)}},
+    Mode = "IDLE", -- "LEFT", "RIGHT", "AUTO"
+    Path1 = {
+        Vector3.new(-470.6, -5.9, 34.4),
+        Vector3.new(-484.2, -3.9, 21.4),
+        Vector3.new(-475.6, -5.8, 29.3),
+        Vector3.new(-473.4, -5.9, 111)
+    },
+    Path2 = {
+        Vector3.new(-474.7, -5.9, 91.0),
+        Vector3.new(-483.4, -3.9, 97.3),
+        Vector3.new(-474.7, -5.9, 91.0),
+        Vector3.new(-476.1, -5.5, 25.4)
+    },
     Speed1 = 58.37,
     Speed2 = 29.4,
     JumpPower = 50,
     Connection = nil,
     CurrentPath = nil,
+    PathIndex = 1,
     Gui = nil,
     MainFrame = nil,
-    ToggleBtn = nil
+    ToggleBtn = nil,
+    StatusText = nil
 }
 
 local function aw_moveToPoint(hrp, target, speed)
     local pos = hrp.Position
-    local dir = Vector3.new(target.X, pos.Y, target.Z) - pos
-    if dir.Magnitude <= 2 then return true end
-    hrp.AssemblyLinearVelocity = Vector3.new(dir.Unit.X * speed, hrp.AssemblyLinearVelocity.Y, dir.Unit.Z * speed)
+    local dir = (target - pos) * Vector3.new(1, 0, 1)
+    if dir.Magnitude <= 3 then
+        hrp.AssemblyLinearVelocity = Vector3.new(0, hrp.AssemblyLinearVelocity.Y, 0)
+        return true
+    end
+    local moveDir = dir.Unit * speed
+    hrp.AssemblyLinearVelocity = Vector3.new(moveDir.X, hrp.AssemblyLinearVelocity.Y, moveDir.Z)
     return false
 end
 
 local function aw_runPath(path)
-    local char = lp.Character or lp.CharacterAdded:Wait()
-    local hrp = char:WaitForChild("HumanoidRootPart")
+    local char = lp.Character
+    if not char then return end
     
-    for i, point in ipairs(path) do
-        if not AutoWalk.Active then break end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    
+    for i = 1, #path do
+        if not AutoWalk.Active or AutoWalk.Mode == "IDLE" then break end
+        
+        local target = path[i]
         
         -- Move to point
-        while AutoWalk.Active do
-            local reached = aw_moveToPoint(hrp, point.pos, i > 2 and AutoWalk.Speed2 or AutoWalk.Speed1)
+        while AutoWalk.Active and AutoWalk.Mode ~= "IDLE" do
+            local reached = aw_moveToPoint(hrp, target, i > 2 and AutoWalk.Speed2 or AutoWalk.Speed1)
             if reached then break end
             RunService.Heartbeat:Wait()
         end
         
         -- Jump at second point
-        if i == 2 and AutoWalk.Active then
+        if i == 2 and AutoWalk.Active and AutoWalk.Mode ~= "IDLE" then
             hrp.AssemblyLinearVelocity = Vector3.new(hrp.AssemblyLinearVelocity.X, AutoWalk.JumpPower, hrp.AssemblyLinearVelocity.Z)
             task.wait(0.35)
         end
         
-        task.wait(0.01)
+        task.wait(0.1)
+    end
+    
+    if AutoWalk.Active and AutoWalk.Mode == "AUTO" then
+        -- Continue looping for AUTO mode
+        task.spawn(function()
+            task.wait(0.5)
+            if AutoWalk.Active and AutoWalk.Mode == "AUTO" then
+                local char = lp.Character
+                if char and char:FindFirstChild("HumanoidRootPart") then
+                    local hrp = char.HumanoidRootPart
+                    local nextPath = (hrp.Position.Z < 60) and AutoWalk.Path2 or AutoWalk.Path1
+                    aw_runPath(nextPath)
+                end
+            end
+        end)
+    elseif AutoWalk.Active then
+        AutoWalk.Active = false
+        AutoWalk.Mode = "IDLE"
+        if AutoWalk.StatusText then
+            AutoWalk.StatusText.Text = "⏸ Idle"
+        end
     end
 end
 
-local function aw_startPath(path)
+local function aw_startMode(mode)
+    if not AutoWalk.Enabled then return end
+    
     AutoWalk.Active = true
-    AutoWalk.CurrentPath = path
+    AutoWalk.Mode = mode
     
-    if AutoWalk.Connection then AutoWalk.Connection:Disconnect() end
+    if AutoWalk.StatusText then
+        if mode == "LEFT" then
+            AutoWalk.StatusText.Text = "▶ LEFT PATH - Walking..."
+        elseif mode == "RIGHT" then
+            AutoWalk.StatusText.Text = "▶ RIGHT PATH - Walking..."
+        elseif mode == "AUTO" then
+            AutoWalk.StatusText.Text = "▶ AUTO MODE - Walking..."
+        end
+    end
     
-    AutoWalk.Connection = RunService.Heartbeat:Connect(function()
-        if not AutoWalk.Active then
+    task.spawn(function()
+        if mode == "LEFT" then
+            aw_runPath(AutoWalk.Path1)
+        elseif mode == "RIGHT" then
+            aw_runPath(AutoWalk.Path2)
+        elseif mode == "AUTO" then
             local char = lp.Character
             if char and char:FindFirstChild("HumanoidRootPart") then
-                char.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero
+                local hrp = char.HumanoidRootPart
+                local startPath = (hrp.Position.Z < 60) and AutoWalk.Path2 or AutoWalk.Path1
+                aw_runPath(startPath)
             end
-            return
-        end
-        
-        if not AutoWalk.CurrentPath then return end
-        
-        -- Run the path in a separate thread para hindi ma-block ang heartbeat
-        task.spawn(function()
-            aw_runPath(AutoWalk.CurrentPath)
-            AutoWalk.Active = false
-        end)
-        
-        if AutoWalk.Connection then
-            AutoWalk.Connection:Disconnect()
-            AutoWalk.Connection = nil
         end
     end)
 end
 
 local function aw_stop()
     AutoWalk.Active = false
-    AutoWalk.CurrentPath = nil
-    if AutoWalk.Connection then
-        AutoWalk.Connection:Disconnect()
-        AutoWalk.Connection = nil
+    AutoWalk.Mode = "IDLE"
+    if AutoWalk.StatusText then
+        AutoWalk.StatusText.Text = "⏸ Idle"
     end
     local char = lp.Character
     if char and char:FindFirstChild("HumanoidRootPart") then
         char.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero
     end
-end
-
-local function aw_loop()
-    while AutoWalk.Enabled and AutoWalk.Active do
-        local char = lp.Character
-        if char then
-            local hrp = char:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                local path = (hrp.Position.Z < 60) and AutoWalk.Path2 or AutoWalk.Path1
-                aw_runPath(path)
-            end
-        end
-        task.wait(0.1)
-    end
-    AutoWalk.Active = false
 end
 
 local function createAutoWalkUI()
@@ -691,10 +721,19 @@ local function createAutoWalkUI()
         return valueBox
     end
     
-    -- Create mode buttons
+    -- Create sliders
+    local speed1Box = createSlider("Speed Phase 1", 1, 200, AutoWalk.Speed1, 95, function(val)
+        AutoWalk.Speed1 = val
+    end)
+    
+    local speed2Box = createSlider("Speed Phase 2", 1, 200, AutoWalk.Speed2, 145, function(val)
+        AutoWalk.Speed2 = val
+    end)
+    
+    -- Mode buttons container
     local modeContainer = Instance.new("Frame")
     modeContainer.Size = UDim2.new(1, -20, 0, 60)
-    modeContainer.Position = UDim2.new(0, 10, 0, 150)
+    modeContainer.Position = UDim2.new(0, 10, 0, 195)
     modeContainer.BackgroundTransparency = 1
     modeContainer.Parent = AutoWalk.MainFrame
     
@@ -754,7 +793,7 @@ local function createAutoWalkUI()
     -- Status indicator
     local statusFrame = Instance.new("Frame")
     statusFrame.Size = UDim2.new(1, -20, 0, 30)
-    statusFrame.Position = UDim2.new(0, 10, 0, 220)
+    statusFrame.Position = UDim2.new(0, 10, 0, 260)
     statusFrame.BackgroundColor3 = Color3.fromRGB(30, 35, 40)
     statusFrame.BackgroundTransparency = 0.3
     statusFrame.Parent = AutoWalk.MainFrame
@@ -763,25 +802,16 @@ local function createAutoWalkUI()
     statusCorner.CornerRadius = UDim.new(0, 6)
     statusCorner.Parent = statusFrame
     
-    local statusText = Instance.new("TextLabel")
-    statusText.Size = UDim2.new(1, -10, 1, 0)
-    statusText.Position = UDim2.new(0, 5, 0, 0)
-    statusText.BackgroundTransparency = 1
-    statusText.Text = "⏸ Idle"
-    statusText.TextColor3 = Color3.fromRGB(200, 200, 200)
-    statusText.TextSize = 12
-    statusText.TextXAlignment = Enum.TextXAlignment.Left
-    statusText.Font = Enum.Font.Gotham
-    statusText.Parent = statusFrame
-    
-    -- Create sliders
-    local speed1Box = createSlider("Speed Phase 1", 1, 200, AutoWalk.Speed1, 95, function(val)
-        AutoWalk.Speed1 = val
-    end)
-    
-    local speed2Box = createSlider("Speed Phase 2", 1, 200, AutoWalk.Speed2, 145, function(val)
-        AutoWalk.Speed2 = val
-    end)
+    AutoWalk.StatusText = Instance.new("TextLabel")
+    AutoWalk.StatusText.Size = UDim2.new(1, -10, 1, 0)
+    AutoWalk.StatusText.Position = UDim2.new(0, 5, 0, 0)
+    AutoWalk.StatusText.BackgroundTransparency = 1
+    AutoWalk.StatusText.Text = "⏸ Idle"
+    AutoWalk.StatusText.TextColor3 = Color3.fromRGB(200, 200, 200)
+    AutoWalk.StatusText.TextSize = 12
+    AutoWalk.StatusText.TextXAlignment = Enum.TextXAlignment.Left
+    AutoWalk.StatusText.Font = Enum.Font.Gotham
+    AutoWalk.StatusText.Parent = statusFrame
     
     -- Button click handlers
     AutoWalk.ToggleBtn.MouseButton1Click:Connect(function()
@@ -789,48 +819,33 @@ local function createAutoWalkUI()
         if AutoWalk.Enabled then
             AutoWalk.ToggleBtn.Text = "DISABLE AUTO WALK"
             header.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-            statusText.Text = "▶ Waiting for mode..."
+            if AutoWalk.StatusText then
+                AutoWalk.StatusText.Text = "▶ Ready - Choose mode"
+            end
         else
             AutoWalk.ToggleBtn.Text = "ENABLE AUTO WALK"
             header.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
             aw_stop()
-            statusText.Text = "⏸ Idle"
         end
     end)
     
     leftBtn.MouseButton1Click:Connect(function()
         if not AutoWalk.Enabled then return end
         aw_stop()
-        AutoWalk.Active = true
-        statusText.Text = "▶ LEFT PATH - Walking..."
-        task.spawn(function()
-            aw_runPath(AutoWalk.Path1)
-            AutoWalk.Active = false
-            statusText.Text = "⏸ Path complete"
-        end)
+        aw_startMode("LEFT")
     end)
     
     rightBtn.MouseButton1Click:Connect(function()
         if not AutoWalk.Enabled then return end
         aw_stop()
-        AutoWalk.Active = true
-        statusText.Text = "▶ RIGHT PATH - Walking..."
-        task.spawn(function()
-            aw_runPath(AutoWalk.Path2)
-            AutoWalk.Active = false
-            statusText.Text = "⏸ Path complete"
-        end)
+        aw_startMode("RIGHT")
     end)
     
     autoBtn.MouseButton1Click:Connect(function()
         if not AutoWalk.Enabled then return end
         aw_stop()
-        AutoWalk.Active = true
-        statusText.Text = "▶ AUTO MODE - Walking..."
-        task.spawn(aw_loop)
+        aw_startMode("AUTO")
     end)
-    
-    -- Make draggable (already set Draggable=true)
 end
 
 local function enableAutoWalk()
@@ -842,9 +857,6 @@ local function disableAutoWalk()
     aw_stop()
     AutoWalk.Enabled = false
     if AutoWalk.Gui then AutoWalk.Gui.Enabled = false end
-    if AutoWalk.ToggleBtn then
-        AutoWalk.ToggleBtn.Text = "ENABLE AUTO WALK"
-    end
 end
 
 -------------------------------------------------------------------------
@@ -1031,7 +1043,7 @@ AddToggle("Combat","Melee Aimbot",false,function(active)
     else if Cebo.Conn then Cebo.Conn:Disconnect() end; if Cebo.Circle then Cebo.Circle:Destroy() end; if Cebo.Align then Cebo.Align:Destroy() end; if Cebo.Attach then Cebo.Attach:Destroy() end; if lp.Character and lp.Character:FindFirstChild("Humanoid") then lp.Character.Humanoid.AutoRotate=true end end
 end)
 
--- Auto Grab (no GUI - nasa Combat tab lang)
+-- Auto Grab (with progress bar sa HUD)
 AddToggle("Combat","Auto Grab",false,function(v) 
     autoStealSetEnabled(v)
 end)
@@ -1085,7 +1097,7 @@ AddToggle("Visual","No Anim",false,function(v) if v then enableNoAnim() else dis
 AddToggle("Visual","Player ESP",false,function(v) if v then enableESP() else disableESP() end end)
 
 -------------------------------------------------------------------------
--- TOP HUD
+-- TOP HUD (with Auto Grab progress bar)
 -------------------------------------------------------------------------
 local HudGui=Instance.new("ScreenGui"); HudGui.Name="IvoDuels_HUD"; HudGui.ResetOnSpawn=false; HudGui.DisplayOrder=999; HudGui.Parent=CoreGui
 local HudFrame=Instance.new("Frame"); HudFrame.Size=UDim2.new(0,220,0,24); HudFrame.Position=UDim2.new(0.5,-110,0,6); HudFrame.BackgroundColor3=Color3.fromRGB(11,14,20); HudFrame.BackgroundTransparency=0.2; HudFrame.BorderSizePixel=0; HudFrame.Parent=HudGui
@@ -1094,7 +1106,20 @@ local HudName=Instance.new("TextLabel"); HudName.Size=UDim2.new(0.4,0,1,0); HudN
 local function makeDivider(x) local d=Instance.new("Frame"); d.Size=UDim2.new(0,1,0.6,0); d.Position=UDim2.new(x,0,0.2,0); d.BackgroundColor3=Color3.fromRGB(255,255,255); d.BackgroundTransparency=0.6; d.BorderSizePixel=0; d.Parent=HudFrame end
 makeDivider(0.4); makeDivider(0.69)
 local HudFPS=Instance.new("TextLabel"); HudFPS.Size=UDim2.new(0.28,0,1,0); HudFPS.Position=UDim2.new(0.41,0,0,0); HudFPS.BackgroundTransparency=1; HudFPS.Text="FPS: --"; HudFPS.TextColor3=Color3.fromRGB(120,255,160); HudFPS.Font=Enum.Font.GothamBold; HudFPS.TextSize=11; HudFPS.TextXAlignment=Enum.TextXAlignment.Center; HudFPS.Parent=HudFrame
-local HudPing=Instance.new("TextLabel"); HudPing.Size=UDim2.new(0.3,-8,1,0); HudPing.Position=UDim2.new(0.7,0,0,0); HudPing.BackgroundTransparency=1; HudPing.Text="Ping: --"; HudPing.TextColor3=Color3.fromRGB(120,200,255); HudPing.Font=Enum.Font.GothamBold; HudPing.TextSize=11; HudPing.TextXAlignment=Enum.TextXAlignment.Center; HudPing.Parent=HudFrame
+local HudPing=Instance.new("TextLabel"); HudPing.Size=UDim2.new(0.3,-8,1,0); HudPing.Position=UDim2.new(0.7,0,0,0); HudPing.BackgroundTransparency=1; HudPing.Text="Ping: --"; HudPing.TextColor3=Color3.fromRGB(120,200,255); HudFPS.Font=Enum.Font.GothamBold; HudPing.TextSize=11; HudPing.TextXAlignment=Enum.TextXAlignment.Center; HudPing.Parent=HudFrame
+
+-- Auto Grab Progress Bar (sa baba ng FPS/Ping)
+local GrabBarFrame=Instance.new("Frame"); GrabBarFrame.Size=UDim2.new(0,220,0,8); GrabBarFrame.Position=UDim2.new(0.5,-110,0,34); GrabBarFrame.BackgroundColor3=Color3.fromRGB(25,25,30); GrabBarFrame.BackgroundTransparency=0.2; GrabBarFrame.BorderSizePixel=0; GrabBarFrame.Parent=HudGui
+Instance.new("UICorner",GrabBarFrame).CornerRadius=UDim.new(1,0)
+local hs2=Instance.new("UIStroke",GrabBarFrame); hs2.Color=Color3.fromRGB(255,255,255); hs2.Thickness=1; hs2.Transparency=0.7
+local GrabBarFill=Instance.new("Frame"); GrabBarFill.Size=UDim2.new(0,0,1,0); GrabBarFill.BackgroundColor3=Color3.fromRGB(138,43,226); GrabBarFill.BorderSizePixel=0; GrabBarFill.Parent=GrabBarFrame
+Instance.new("UICorner",GrabBarFill).CornerRadius=UDim.new(1,0)
+Instance.new("UIGradient",GrabBarFill).Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromRGB(80,0,200)),ColorSequenceKeypoint.new(0.5,Color3.fromRGB(200,80,255)),ColorSequenceKeypoint.new(1,Color3.fromRGB(80,0,200))})
+local GrabDot=Instance.new("Frame"); GrabDot.Size=UDim2.new(0,10,0,10); GrabDot.AnchorPoint=Vector2.new(0.5,0.5); GrabDot.Position=UDim2.new(0.5,0,0.5,0); GrabDot.BackgroundColor3=Color3.fromRGB(180,80,255); GrabDot.BorderSizePixel=0; GrabDot.BackgroundTransparency=1; GrabDot.Parent=GrabBarFrame
+Instance.new("UICorner",GrabDot).CornerRadius=UDim.new(1,0)
+local GrabLabel=Instance.new("TextLabel"); GrabLabel.Size=UDim2.new(0,60,0,8); GrabLabel.Position=UDim2.new(1,4,0,0); GrabLabel.BackgroundTransparency=1; GrabLabel.Text=""; GrabLabel.TextColor3=Color3.fromRGB(200,140,255); GrabLabel.Font=Enum.Font.GothamBold; GrabLabel.TextSize=8; GrabLabel.TextXAlignment=Enum.TextXAlignment.Left; GrabLabel.Parent=GrabBarFrame
+
+-- FPS Counter update
 local frameCount,lastTime=0,tick()
 RunService.RenderStepped:Connect(function()
     frameCount+=1; local now=tick()
@@ -1102,6 +1127,27 @@ RunService.RenderStepped:Connect(function()
         local fps=math.floor(frameCount/(now-lastTime)); frameCount=0; lastTime=now
         HudFPS.Text="FPS: "..fps; HudFPS.TextColor3=fps>=55 and Color3.fromRGB(120,255,160) or fps>=30 and Color3.fromRGB(255,220,80) or Color3.fromRGB(255,80,80)
         local ping=math.floor(lp:GetNetworkPing()*1000); HudPing.Text="Ping: "..ping; HudPing.TextColor3=ping<=80 and Color3.fromRGB(120,200,255) or ping<=150 and Color3.fromRGB(255,220,80) or Color3.fromRGB(255,80,80)
+    end
+end)
+
+-- Auto Grab Progress Bar update
+local grabTween=nil
+RunService.Heartbeat:Connect(function()
+    local grabbing = AutoSteal.IsStealing and AutoSteal.Enabled
+    local prog = AutoSteal.StealProgress or 0
+    local targetW = grabbing and prog or 0
+    
+    if grabTween then grabTween:Cancel() end
+    grabTween=TweenService:Create(GrabBarFill,TweenInfo.new(0.05,Enum.EasingStyle.Linear),{Size=UDim2.new(targetW,0,1,0)}); grabTween:Play()
+    
+    GrabDot.BackgroundTransparency=grabbing and (0.2+math.sin(tick()*8)*0.3) or 1
+    
+    if grabbing then
+        GrabLabel.Text=math.floor(prog*100).."%"
+        GrabBarFill.BackgroundColor3=Color3.fromRGB(138,43,226)
+    else
+        GrabLabel.Text=AutoSteal.Enabled and "READY" or ""
+        GrabBarFill.BackgroundColor3=Color3.fromRGB(50,50,60)
     end
 end)
 
@@ -1178,7 +1224,7 @@ end
 drag(MainFrame); drag(ToggleIcon)
 ToggleIcon.MouseButton1Click:Connect(function() MainFrame.Visible=not MainFrame.Visible end)
 
-print("Ivo Duels Script Loaded - UPDATED!")
-print("- Float: REMOVED")
-print("- Auto Grab: Combat tab lang (no extra GUI)")
-print("- Auto Walk: May bagong GUI gaya ng Speed Customizer")
+print("Ivo Duels Script Loaded - FIXED VERSION!")
+print("✓ Auto Walk - Gumagana na!")
+print("✓ Auto Grab - May progress bar na sa baba ng FPS/Ping")
+print("✓ Float - Tinanggal (kasi pangit daw)")
