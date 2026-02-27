@@ -15,8 +15,8 @@ local pl = Color3.fromRGB(110, 55, 200)
 local pa = Color3.fromRGB(150, 75, 255) 
 local pb = Color3.fromRGB(190, 115, 255) 
 local pg = Color3.fromRGB(210, 150, 255) 
-local bgc = Color3.fromRGB(255, 255, 255)  -- Background changed to white
-local wh = Color3.fromRGB(0, 0, 0)  -- Text changed to black
+local bgc = Color3.fromRGB(255, 255, 255)  -- Background white
+local wh = Color3.fromRGB(0, 0, 0)  -- Text black
 local speed55 = false 
 local speedSteal = false 
 local spinbot = false 
@@ -41,172 +41,161 @@ local vertSpeed = 35
 local movingDots = {} 
 local sprintMovingDots = {} 
 
--- Small status GUI
-local statusGUI = Instance.new("ScreenGui")
-statusGUI.Name = "StatusGUI"
-statusGUI.ResetOnSpawn = false
-statusGUI.Parent = par
-statusGUI.Enabled = true
-
-local statusFrame = Instance.new("Frame")
-statusFrame.Size = UDim2.new(0, 200, 0, 120)
-statusFrame.Position = UDim2.new(1, -210, 0, 10)
-statusFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-statusFrame.BackgroundTransparency = 0.1
-statusFrame.BorderSizePixel = 0
-statusFrame.Parent = statusGUI
-
-local statusCorner = Instance.new("UICorner")
-statusCorner.CornerRadius = UDim.new(0, 8)
-statusCorner.Parent = statusFrame
-
-local statusStroke = Instance.new("UIStroke")
-statusStroke.Color = pb
-statusStroke.Thickness = 1.5
-statusStroke.Transparency = 0.2
-statusStroke.Parent = statusFrame
-
-local statusTitle = Instance.new("TextLabel")
-statusTitle.Size = UDim2.new(1, 0, 0, 25)
-statusTitle.Position = UDim2.new(0, 0, 0, 0)
-statusTitle.BackgroundTransparency = 1
-statusTitle.Text = "ACTIVE FEATURES"
-statusTitle.TextColor3 = pb
-statusTitle.Font = Enum.Font.GothamBold
-statusTitle.TextSize = 12
-statusTitle.Parent = statusFrame
-
-local statusList = Instance.new("Frame")
-statusList.Size = UDim2.new(1, -10, 1, -35)
-statusList.Position = UDim2.new(0, 5, 0, 30)
-statusList.BackgroundTransparency = 1
-statusList.Parent = statusFrame
-
-local statusLayout = Instance.new("UIListLayout")
-statusLayout.FillDirection = Enum.FillDirection.Vertical
-statusLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
-statusLayout.VerticalAlignment = Enum.VerticalAlignment.Top
-statusLayout.SortOrder = Enum.SortOrder.LayoutOrder
-statusLayout.Padding = UDim.new(0, 3)
-statusLayout.Parent = statusList
-
--- Table to store status labels
-local statusLabels = {}
-
-local function createStatusLabel(featureName, color)
-    local labelFrame = Instance.new("Frame")
-    labelFrame.Size = UDim2.new(1, 0, 0, 18)
-    labelFrame.BackgroundTransparency = 1
-    labelFrame.Parent = statusList
-    labelFrame.Visible = false
+-- Function to create individual feature toggles
+local function createFeatureToggle(featureName, color, defaultPos)
+    local gui = Instance.new("ScreenGui")
+    gui.Name = featureName .. "Toggle"
+    gui.ResetOnSpawn = false
+    gui.Parent = par
     
-    local dot = Instance.new("Frame")
-    dot.Size = UDim2.new(0, 6, 0, 6)
-    dot.Position = UDim2.new(0, 0, 0.5, -3)
-    dot.BackgroundColor3 = color or pb
-    dot.BorderSizePixel = 0
-    dot.Parent = labelFrame
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 100, 0, 30)
+    frame.Position = defaultPos or UDim2.new(0, 10, 0, 10)
+    frame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    frame.BackgroundTransparency = 0
+    frame.BorderSizePixel = 0
+    frame.Parent = gui
+    frame.Active = true
+    frame.Draggable = true
     
-    local dotCorner = Instance.new("UICorner")
-    dotCorner.CornerRadius = UDim.new(1, 0)
-    dotCorner.Parent = dot
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 15)
+    corner.Parent = frame
+    
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = color or pb
+    stroke.Thickness = 2
+    stroke.Transparency = 0
+    stroke.Parent = frame
     
     local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, -10, 1, 0)
+    label.Size = UDim2.new(0.6, 0, 1, 0)
     label.Position = UDim2.new(0, 10, 0, 0)
     label.BackgroundTransparency = 1
     label.Text = featureName
     label.TextColor3 = Color3.fromRGB(0, 0, 0)
-    label.Font = Enum.Font.Gotham
-    label.TextSize = 11
+    label.Font = Enum.Font.GothamBold
+    label.TextSize = 10
     label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = labelFrame
+    label.TextYAlignment = Enum.TextYAlignment.Center
+    label.Parent = frame
+    
+    local toggleBg = Instance.new("Frame")
+    toggleBg.Size = UDim2.new(0, 40, 0, 20)
+    toggleBg.Position = UDim2.new(1, -45, 0.5, -10)
+    toggleBg.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+    toggleBg.BorderSizePixel = 0
+    toggleBg.Parent = frame
+    
+    local toggleCorner = Instance.new("UICorner")
+    toggleCorner.CornerRadius = UDim.new(1, 0)
+    toggleCorner.Parent = toggleBg
+    
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0, 16, 0, 16)
+    knob.Position = UDim2.new(0, 2, 0.5, -8)
+    knob.BackgroundColor3 = Color3.fromRGB(150, 150, 150)
+    knob.BorderSizePixel = 0
+    knob.Parent = toggleBg
+    
+    local knobCorner = Instance.new("UICorner")
+    knobCorner.CornerRadius = UDim.new(1, 0)
+    knobCorner.Parent = knob
+    
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(1, 0, 1, 0)
+    button.BackgroundTransparency = 1
+    button.Text = ""
+    button.Parent = toggleBg
+    
+    local active = false
+    
+    local function updateToggle()
+        if active then
+            ts:Create(knob, TweenInfo.new(0.2), {
+                Position = UDim2.new(1, -18, 0.5, -8),
+                BackgroundColor3 = color or pb
+            }):Play()
+            ts:Create(toggleBg, TweenInfo.new(0.2), {
+                BackgroundColor3 = color or pb
+            }):Play()
+            ts:Create(stroke, TweenInfo.new(0.2), {
+                Color = color or pb,
+                Transparency = 0
+            }):Play()
+        else
+            ts:Create(knob, TweenInfo.new(0.2), {
+                Position = UDim2.new(0, 2, 0.5, -8),
+                BackgroundColor3 = Color3.fromRGB(150, 150, 150)
+            }):Play()
+            ts:Create(toggleBg, TweenInfo.new(0.2), {
+                BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+            }):Play()
+            ts:Create(stroke, TweenInfo.new(0.2), {
+                Color = color or pb,
+                Transparency = 0.5
+            }):Play()
+        end
+    end
+    
+    button.MouseButton1Click:Connect(function()
+        active = not active
+        updateToggle()
+        
+        -- Call the respective toggle function
+        if featureName == "SPEED NS" then
+            speed55 = active
+        elseif featureName == "SPEED S" then
+            speedSteal = active
+        elseif featureName == "SPINBOT" then
+            spinbot = active
+            if active then
+                if plr.Character then spinOn(plr.Character) end
+            else
+                if plr.Character then spinOff(plr.Character) end
+            end
+        elseif featureName == "GRAB" then
+            autograb = active
+            if active then startGrab() else stopGrab() end
+        elseif featureName == "ANTI RAG" then
+            antirag = active
+            if active then anti.Enable("v1") else anti.Disable() end
+        elseif featureName == "FLOAT" then
+            floaton = active
+            if active then startFloat() else stopFloat() end
+        elseif featureName == "INF JUMP" then
+            infjump = active
+        elseif featureName == "X-RAY" then
+            xrayon = active
+            xrayToggle(active)
+        end
+    end)
     
     return {
-        frame = labelFrame,
-        label = label,
-        dot = dot
+        gui = gui,
+        frame = frame,
+        set = function(state)
+            active = state
+            updateToggle()
+        end,
+        get = function() return active end
     }
 end
 
--- Create status labels for all features
-statusLabels.speed55 = createStatusLabel("SPEED [NO STEAL]", pl)
-statusLabels.speedSteal = createStatusLabel("SPEED [STEAL]", pl)
-statusLabels.spinbot = createStatusLabel("SPINBOT", pa)
-statusLabels.autograb = createStatusLabel("AUTO GRAB", pb)
-statusLabels.antirag = createStatusLabel("ANTI RAGDOLL", pg)
-statusLabels.floaton = createStatusLabel("FLOAT", pa)
-statusLabels.infjump = createStatusLabel("INF JUMP", pl)
-statusLabels.xrayon = createStatusLabel("X-RAY", pb)
+-- Create individual toggles at different positions
+local toggles = {}
 
--- Function to update status GUI visibility
-local function updateStatusGUI()
-    local anyActive = false
-    for name, label in pairs(statusLabels) do
-        local isActive = false
-        if name == "speed55" then isActive = speed55 end
-        if name == "speedSteal" then isActive = speedSteal end
-        if name == "spinbot" then isActive = spinbot end
-        if name == "autograb" then isActive = autograb end
-        if name == "antirag" then isActive = antirag end
-        if name == "floaton" then isActive = floaton end
-        if name == "infjump" then isActive = infjump end
-        if name == "xrayon" then isActive = xrayon end
-        
-        label.frame.Visible = isActive
-        if isActive then
-            anyActive = true
-        end
-    end
-    
-    -- Animate status frame appearance
-    if anyActive then
-        if statusFrame.Visible == false then
-            statusFrame.Visible = true
-            ts:Create(statusFrame, TweenInfo.new(0.3), {
-                Position = UDim2.new(1, -210, 0, 10),
-                BackgroundTransparency = 0.1
-            }):Play()
-        end
-    else
-        ts:Create(statusFrame, TweenInfo.new(0.3), {
-            Position = UDim2.new(1, -210, 0, 10),
-            BackgroundTransparency = 1
-        }):Play()
-        task.wait(0.3)
-        statusFrame.Visible = false
-    end
-end
+-- Row 1
+toggles.speedNS = createFeatureToggle("SPEED NS", pl, UDim2.new(0, 10, 0, 10))
+toggles.speedS = createFeatureToggle("SPEED S", pl, UDim2.new(0, 120, 0, 10))
+toggles.spinbot = createFeatureToggle("SPINBOT", pa, UDim2.new(0, 230, 0, 10))
+toggles.grab = createFeatureToggle("GRAB", pb, UDim2.new(0, 340, 0, 10))
 
--- Make status frame draggable
-local function drag(obj)
-    local d, i, s, p
-    obj.InputBegan:Connect(function(inp)
-        if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
-            d = true
-            s = inp.Position
-            p = obj.Position
-            inp.Changed:Connect(function()
-                if inp.UserInputState == Enum.UserInputState.End then
-                    d = false
-                end
-            end)
-        end
-    end)
-    obj.InputChanged:Connect(function(inp)
-        if inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch then
-            i = inp
-        end
-    end)
-    uis.InputChanged:Connect(function(inp)
-        if inp == i and d then
-            local delta = inp.Position - s
-            obj.Position = UDim2.new(p.X.Scale, p.X.Offset + delta.X, p.Y.Scale, p.Y.Offset + delta.Y)
-        end
-    end)
-end
-
-drag(statusFrame)
+-- Row 2
+toggles.antiRag = createFeatureToggle("ANTI RAG", pg, UDim2.new(0, 10, 0, 50))
+toggles.float = createFeatureToggle("FLOAT", pa, UDim2.new(0, 120, 0, 50))
+toggles.infJump = createFeatureToggle("INF JUMP", pl, UDim2.new(0, 230, 0, 50))
+toggles.xray = createFeatureToggle("X-RAY", pb, UDim2.new(0, 340, 0, 50))
 
 local function spinOn(c) 
     local hrp = c:WaitForChild("HumanoidRootPart", 5) 
@@ -233,23 +222,6 @@ local function spinOff(c)
             end 
         end 
     end 
-end 
-
-local function toggleSpin(b) 
-    spinbot = b 
-    if b then 
-        if plr.Character then 
-            spinOn(plr.Character) 
-        end 
-        table.insert(conns, plr.CharacterAdded:Connect(function(c) 
-            spinOn(c) 
-        end)) 
-    else 
-        if plr.Character then 
-            spinOff(plr.Character) 
-        end 
-    end 
-    updateStatusGUI()
 end 
 
 local function createDots(parent) 
@@ -396,7 +368,6 @@ function anti.Enable(m)
     setupCam() 
     task.spawn(antiLoop) 
     antirag = true
-    updateStatusGUI()
     print("anti on") 
 end 
 
@@ -406,7 +377,6 @@ function anti.Disable()
     killConns() 
     charCache = {} 
     antirag = false
-    updateStatusGUI()
     print("anti off") 
 end 
 
@@ -721,7 +691,6 @@ local function startGrab()
             attemptSteal(p, tar) 
         end 
     end) 
-    updateStatusGUI()
     print("grab on") 
 end 
 
@@ -744,7 +713,6 @@ local function stopGrab()
     animalCache = {} 
     promptMem = {} 
     stealMem = {} 
-    updateStatusGUI()
     print("grab off") 
 end 
 
@@ -793,7 +761,6 @@ local function startFloat()
             target = nil 
         end 
     end) 
-    updateStatusGUI()
     print("float on") 
 end 
 
@@ -811,327 +778,7 @@ local function stopFloat()
             h.AssemblyLinearVelocity = Vector3.new(0, 0, 0) 
         end 
     end 
-    updateStatusGUI()
     print("float off") 
-end 
-
-local function drag2(obj) 
-    local d, i, s, p 
-    obj.InputBegan:Connect(function(inp) 
-        if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then 
-            d = true 
-            s = inp.Position 
-            p = obj.Position 
-            inp.Changed:Connect(function() 
-                if inp.UserInputState == Enum.UserInputState.End then 
-                    d = false 
-                end 
-            end) 
-        end 
-    end) 
-    obj.InputChanged:Connect(function(inp) 
-        if inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch then 
-            i = inp 
-        end 
-    end) 
-    uis.InputChanged:Connect(function(inp) 
-        if inp == i and d then 
-            local delta = inp.Position - s 
-            obj.Position = UDim2.new(p.X.Scale, p.X.Offset + delta.X, p.Y.Scale, p.Y.Offset + delta.Y) 
-        end 
-    end) 
-end 
-
-local gui = Instance.new("ScreenGui", par) 
-gui.Name = "PRIMO DUEL" 
-gui.ResetOnSpawn = false 
-gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling 
-
-local function new(c, props) 
-    local o = Instance.new(c) 
-    for k, v in pairs(props) do 
-        if k ~= "Parent" then 
-            o[k] = v 
-        end 
-    end 
-    if props.Parent then 
-        o.Parent = props.Parent 
-    end 
-    return o 
-end 
-
-local main = new("Frame", { 
-    Name = "main", 
-    Size = UDim2.new(0, 160, 0, 172), 
-    Position = UDim2.new(0.5, -180, 0.5, -86), 
-    BackgroundTransparency = 1, 
-    Active = true, 
-    Draggable = true, 
-    Parent = gui 
-}) 
-main.Visible = false 
-
-local bg = new("Frame", { 
-    Size = UDim2.new(1, 0, 1, 0), 
-    BackgroundColor3 = bgc, 
-    BackgroundTransparency = 1, 
-    BorderSizePixel = 0, 
-    Parent = main 
-}) 
-new("UICorner", { 
-    CornerRadius = UDim.new(0, 8), 
-    Parent = bg 
-}) 
-
-local dotContainer, movingDots = createDots(bg) 
-
-local function mkGrad(p) 
-    local g = Instance.new("UIGradient") 
-    g.Color = ColorSequence.new({ 
-        ColorSequenceKeypoint.new(0, pd), 
-        ColorSequenceKeypoint.new(0.3, pm), 
-        ColorSequenceKeypoint.new(0.6, pa), 
-        ColorSequenceKeypoint.new(1, pb) 
-    }) 
-    g.Rotation = 0 
-    g.Parent = p 
-    return g 
-end 
-
-local grad = mkGrad(bg) 
-
-local stroke = new("UIStroke", { 
-    Color = pg, 
-    Thickness = 1.5, 
-    Transparency = 1, 
-    ApplyStrokeMode = Enum.ApplyStrokeMode.Border, 
-    Parent = bg 
-}) 
-
-local stgrad = new("UIGradient", { 
-    Color = ColorSequence.new({ 
-        ColorSequenceKeypoint.new(0, pd), 
-        ColorSequenceKeypoint.new(0.2, pa), 
-        ColorSequenceKeypoint.new(0.5, pb), 
-        ColorSequenceKeypoint.new(0.8, pa), 
-        ColorSequenceKeypoint.new(1, pd) 
-    }), 
-    Rotation = 0, 
-    Parent = stroke 
-}) 
-
-drag2(main) 
-
-local sprint = new("Frame", { 
-    Name = "sprint", 
-    Size = UDim2.new(0, 160, 0, 172), 
-    Position = UDim2.new(0.5, 20, 0.5, -86), 
-    BackgroundTransparency = 1, 
-    Active = true, 
-    Draggable = true, 
-    Parent = gui 
-}) 
-sprint.Visible = false 
-
-local sbg = new("Frame", { 
-    Size = UDim2.new(1, 0, 1, 0), 
-    BackgroundColor3 = bgc, 
-    BackgroundTransparency = 1, 
-    BorderSizePixel = 0, 
-    Parent = sprint 
-}) 
-new("UICorner", { 
-    CornerRadius = UDim.new(0, 8), 
-    Parent = sbg 
-}) 
-
-local sprintDotContainer, sprintMovingDots = createDots(sbg) 
-
-local sgrad = mkGrad(sbg) 
-
-local sst = new("UIStroke", { 
-    Color = pg, 
-    Thickness = 1.5, 
-    Transparency = 1, 
-    ApplyStrokeMode = Enum.ApplyStrokeMode.Border, 
-    Parent = sbg 
-}) 
-
-local sstg = new("UIGradient", { 
-    Color = ColorSequence.new({ 
-        ColorSequenceKeypoint.new(0, pd), 
-        ColorSequenceKeypoint.new(0.2, pa), 
-        ColorSequenceKeypoint.new(0.5, pb), 
-        ColorSequenceKeypoint.new(0.8, pa), 
-        ColorSequenceKeypoint.new(1, pd) 
-    }), 
-    Rotation = 0, 
-    Parent = sst 
-}) 
-
-drag2(sprint) 
-
-local tc = new("Frame", { 
-    Size = UDim2.new(1, -16, 0, 24), 
-    Position = UDim2.new(0, 8, 0, 6), 
-    BackgroundTransparency = 1, 
-    Parent = main 
-}) 
-tc.Visible = false 
-
-local title = new("TextLabel", { 
-    Size = UDim2.new(1, 0, 1, 0), 
-    Position = UDim2.new(0, 0, 0, 0), 
-    Text = "PRIMO DUEL", 
-    TextColor3 = pb, 
-    Font = Enum.Font.GothamBlack, 
-    TextSize = 16, 
-    TextStrokeColor3 = pd, 
-    TextStrokeTransparency = 0.3, 
-    TextTransparency = 1, 
-    BackgroundTransparency = 1, 
-    Parent = tc 
-}) 
-
-local line = new("Frame", { 
-    Size = UDim2.new(0.8, 0, 0, 1.5), 
-    Position = UDim2.new(0.1, 0, 1, -1.5), 
-    BackgroundColor3 = pa, 
-    BackgroundTransparency = 1, 
-    Parent = tc 
-}) 
-new("UICorner", { 
-    CornerRadius = UDim.new(1, 0), 
-    Parent = line 
-}) 
-
-local stc = new("Frame", { 
-    Size = UDim2.new(1, -16, 0, 24), 
-    Position = UDim2.new(0, 8, 0, 6), 
-    BackgroundTransparency = 1, 
-    Parent = sprint 
-}) 
-stc.Visible = false 
-
-local sttl = new("TextLabel", { 
-    Size = UDim2.new(1, 0, 1, 0), 
-    Position = UDim2.new(0, 0, 0, 0), 
-    Text = "DUEL HELPER", 
-    TextColor3 = pb, 
-    Font = Enum.Font.GothamBlack, 
-    TextSize = 14, 
-    TextStrokeColor3 = pd, 
-    TextStrokeTransparency = 0.3, 
-    TextTransparency = 1, 
-    BackgroundTransparency = 1, 
-    Parent = stc 
-}) 
-
-local sline = new("Frame", { 
-    Size = UDim2.new(0.8, 0, 0, 1.5), 
-    Position = UDim2.new(0.1, 0, 1, -1.5), 
-    BackgroundColor3 = pa, 
-    BackgroundTransparency = 1, 
-    Parent = stc 
-}) 
-new("UICorner", { 
-    CornerRadius = UDim.new(1, 0), 
-    Parent = sline 
-}) 
-
-local function makeToggle(parent, txt, y, cb, def) 
-    local c = new("Frame", { 
-        Size = UDim2.new(1, -16, 0, 28), 
-        Position = UDim2.new(0, 8, 0, y), 
-        BackgroundTransparency = 1, 
-        Parent = parent 
-    }) 
-    c.Visible = false 
-    local b = new("Frame", { 
-        Size = UDim2.new(1, 0, 1, 0), 
-        Position = UDim2.new(0, 0, 0, 0), 
-        BackgroundColor3 = Color3.fromRGB(240, 240, 240),  -- Light gray background for buttons
-        BorderSizePixel = 0, 
-        Parent = c 
-    }) 
-    new("UICorner", { 
-        CornerRadius = UDim.new(0, 5), 
-        Parent = b 
-    }) 
-    local lbl = new("TextLabel", { 
-        Size = UDim2.new(0.65, 0, 1, 0), 
-        Position = UDim2.new(0, 8, 0, 0), 
-        Text = txt, 
-        TextColor3 = Color3.fromRGB(0, 0, 0),  -- Black text
-        Font = Enum.Font.GothamBold, 
-        TextSize = 10, 
-        TextTransparency = 0, 
-        TextXAlignment = Enum.TextXAlignment.Left, 
-        TextYAlignment = Enum.TextYAlignment.Center, 
-        BackgroundTransparency = 1, 
-        Parent = b 
-    }) 
-    local tbg = new("Frame", { 
-        Size = UDim2.new(0, 32, 0, 15), 
-        Position = UDim2.new(1, -40, 0.5, -7.5), 
-        BackgroundColor3 = Color3.fromRGB(200, 200, 200),  -- Light gray toggle background
-        BorderSizePixel = 0, 
-        Parent = b 
-    }) 
-    new("UICorner", { 
-        CornerRadius = UDim.new(1, 0), 
-        Parent = tbg 
-    }) 
-    local knob = new("Frame", { 
-        Size = UDim2.new(0, 11, 0, 11), 
-        Position = UDim2.new(0, 2, 0.5, -5.5), 
-        BackgroundColor3 = pl, 
-        BorderSizePixel = 0, 
-        Parent = tbg 
-    }) 
-    new("UICorner", { 
-        CornerRadius = UDim.new(1, 0), 
-        Parent = knob 
-    }) 
-    local btn = new("TextButton", { 
-        Size = UDim2.new(1, 0, 1, 0), 
-        BackgroundTransparency = 1, 
-        Text = "", 
-        Parent = tbg 
-    }) 
-    local active = def or false 
-    local function update() 
-        if active then 
-            ts:Create(knob, TweenInfo.new(0.12), { 
-                Position = UDim2.new(1, -13, 0.5, -5.5), 
-                BackgroundColor3 = pb 
-            }):Play() 
-            tbg.BackgroundColor3 = pd 
-        else 
-            ts:Create(knob, TweenInfo.new(0.12), { 
-                Position = UDim2.new(0, 2, 0.5, -5.5), 
-                BackgroundColor3 = pl 
-            }):Play() 
-            tbg.BackgroundColor3 = Color3.fromRGB(200, 200, 200)  -- Light gray
-        end 
-        cb(active) 
-    end 
-    update() 
-    btn.MouseButton1Click:Connect(function() 
-        active = not active 
-        update() 
-    end) 
-    return { 
-        Set = function(v) 
-            active = v 
-            update() 
-        end, 
-        Get = function() 
-            return active 
-        end, 
-        Container = c, 
-        ButtonBox = b 
-    } 
 end 
 
 local function xrayToggle(e) 
@@ -1191,32 +838,7 @@ local function xrayToggle(e)
         xrayConns = {} 
         xrayOg = {} 
     end 
-    updateStatusGUI()
 end 
-
-local speed1 = makeToggle(sprint, "SPEED [ NO STEALING ]", 34, function(v) 
-    speed55 = v 
-    updateStatusGUI()
-end, false) 
-
-local speed2 = makeToggle(sprint, "SPEED [ STEALING ]", 66, function(v) 
-    speedSteal = v 
-    updateStatusGUI()
-end, false) 
-
-local spintog = makeToggle(sprint, "SPINBOT", 98, function(v) 
-    spinbot = v 
-    toggleSpin(v) 
-end, false) 
-
-local grabtog = makeToggle(sprint, "AUTO GRAB", 130, function(v) 
-    autograb = v 
-    if v then 
-        startGrab() 
-    else 
-        stopGrab() 
-    end 
-end, false) 
 
 rs.Heartbeat:Connect(function() 
     local c = plr.Character 
@@ -1231,7 +853,7 @@ rs.Heartbeat:Connect(function()
                 carry = true 
                 if speed55 then 
                     speed55 = false 
-                    updateStatusGUI()
+                    toggles.speedNS.set(false)
                 end 
                 break 
             end 
@@ -1245,42 +867,6 @@ rs.Heartbeat:Connect(function()
     end 
 end) 
 
-local oc = new("Frame", { 
-    Size = UDim2.new(1, 0, 1, -36), 
-    Position = UDim2.new(0, 0, 0, 36), 
-    BackgroundTransparency = 1, 
-    Parent = main 
-}) 
-oc.Visible = false 
-
-local antitog = makeToggle(oc, "ANTI RAGDOLL", 5, function(v) 
-    antirag = v 
-    if v then 
-        anti.Enable("v1") 
-    else 
-        anti.Disable() 
-    end 
-end, false) 
-
-local floattog = makeToggle(oc, "FLOAT NEAREST", 37, function(v) 
-    floaton = v 
-    if v then 
-        startFloat() 
-    else 
-        stopFloat() 
-    end 
-end, false) 
-
-local jmptog = makeToggle(oc, "INF JUMP", 69, function(v) 
-    infjump = v 
-    updateStatusGUI()
-end, false) 
-
-local xraytog = makeToggle(oc, "X-RAY", 101, function(v) 
-    xrayon = v 
-    xrayToggle(v) 
-end, false) 
-
 uis.JumpRequest:Connect(function() 
     if infjump and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then 
         plr.Character.HumanoidRootPart.AssemblyLinearVelocity = Vector3.new(plr.Character.HumanoidRootPart.AssemblyLinearVelocity.X, 52, plr.Character.HumanoidRootPart.AssemblyLinearVelocity.Z) 
@@ -1288,28 +874,6 @@ uis.JumpRequest:Connect(function()
 end) 
 
 rs.Heartbeat:Connect(function(dt) 
-    grad.Rotation = (grad.Rotation + 80 * dt) % 360 
-    sgrad.Rotation = (sgrad.Rotation + 80 * dt) % 360 
-    stgrad.Rotation = (stgrad.Rotation + 60 * dt) % 360 
-    sstg.Rotation = (sstg.Rotation + 60 * dt) % 360 
-    if movingDots then 
-        for _, d in pairs(movingDots) do 
-            d.frame.Position = UDim2.new( 
-                (d.frame.Position.X.Scale + d.sx * dt * 30) % 1, 0, 
-                (d.frame.Position.Y.Scale + d.sy * dt * 30) % 1, 0 
-            ) 
-            d.frame.BackgroundTransparency = math.sin(tick() * 2 + d.pulse) * 0.1 + 0.4 
-        end 
-    end 
-    if sprintMovingDots then 
-        for _, d in pairs(sprintMovingDots) do 
-            d.frame.Position = UDim2.new( 
-                (d.frame.Position.X.Scale + d.sx * dt * 30) % 1, 0, 
-                (d.frame.Position.Y.Scale + d.sy * dt * 30) % 1, 0 
-            ) 
-            d.frame.BackgroundTransparency = math.sin(tick() * 2 + d.pulse) * 0.1 + 0.4 
-        end 
-    end 
     if dotsFolder and autograb then 
         for _, d in pairs(dotsFolder:GetChildren()) do 
             local sp = d:GetAttribute("Speed") 
@@ -1330,35 +894,6 @@ rs.Heartbeat:Connect(function(dt)
     end 
 end) 
 
-local function animate() 
-    main.Visible = true 
-    sprint.Visible = true 
-    ts:Create(bg, TweenInfo.new(0.8), {BackgroundTransparency = 0}):Play() 
-    ts:Create(stroke, TweenInfo.new(0.8), {Transparency = 0}):Play() 
-    ts:Create(sbg, TweenInfo.new(0.8), {BackgroundTransparency = 0}):Play() 
-    ts:Create(sst, TweenInfo.new(0.8), {Transparency = 0}):Play() 
-    task.wait(0.3) 
-    tc.Visible = true 
-    stc.Visible = true 
-    ts:Create(title, TweenInfo.new(0.5), {TextTransparency = 0}):Play() 
-    ts:Create(line, TweenInfo.new(0.5), {BackgroundTransparency = 0.3}):Play() 
-    ts:Create(sttl, TweenInfo.new(0.5), {TextTransparency = 0}):Play() 
-    ts:Create(sline, TweenInfo.new(0.5), {BackgroundTransparency = 0.3}):Play() 
-    task.wait(0.3) 
-    oc.Visible = true 
-    local togs = {antitog.Container, floattog.Container, jmptog.Container, xraytog.Container} 
-    for _, c in pairs(togs) do 
-        c.Visible = true 
-        task.wait(0.08) 
-    end 
-    task.wait(0.2) 
-    local stogs = {speed1.Container, speed2.Container, spintog.Container, grabtog.Container} 
-    for _, c in pairs(stogs) do 
-        c.Visible = true 
-        task.wait(0.08) 
-    end 
-end 
-
 plr.CharacterAdded:Connect(function(c) 
     if antirag then 
         anti.Enable("v1") 
@@ -1371,155 +906,71 @@ plr.CharacterAdded:Connect(function(c)
     end 
 end) 
 
-local function statsUI() 
-    local sg = new("ScreenGui", { 
-        Name = "stats", 
-        ResetOnSpawn = false, 
-        Parent = par 
-    }) 
-    local sf = new("Frame", { 
-        Name = "main", 
-        Size = UDim2.new(0, 280, 0, 28), 
-        Position = UDim2.new(0.5, -140, 0, 5), 
-        BackgroundTransparency = 1, 
-        Active = true, 
-        Draggable = true, 
-        Parent = sg 
-    }) 
-    sf.Visible = false 
-    local sb = new("Frame", { 
-        Size = UDim2.new(1, 0, 1, 0), 
-        BackgroundColor3 = bgc, 
-        BackgroundTransparency = 1, 
-        BorderSizePixel = 0, 
-        Parent = sf 
-    }) 
-    new("UICorner", { 
-        CornerRadius = UDim.new(0, 8), 
-        Parent = sb 
-    }) 
-    local statsDotContainer, statsMovingDots = createDots(sb) 
-    local sgrad2 = mkGrad(sb) 
-    local sst2 = new("UIStroke", { 
-        Color = pg, 
-        Thickness = 1.5, 
-        Transparency = 1, 
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Border, 
-        Parent = sb 
-    }) 
-    local sstg2 = new("UIGradient", { 
-        Color = ColorSequence.new({ 
-            ColorSequenceKeypoint.new(0, pd), 
-            ColorSequenceKeypoint.new(0.2, pa), 
-            ColorSequenceKeypoint.new(0.5, pb), 
-            ColorSequenceKeypoint.new(0.8, pa), 
-            ColorSequenceKeypoint.new(1, pd) 
-        }), 
-        Rotation = 0, 
-        Parent = sst2 
-    }) 
-    local ld = new("Frame", { 
-        Size = UDim2.new(0, 1.5, 0.7, 0), 
-        Position = UDim2.new(0.33, -0.75, 0.15, 0), 
-        BackgroundColor3 = pa, 
-        BackgroundTransparency = 1, 
-        Parent = sf 
-    }) 
-    local rd = new("Frame", { 
-        Size = UDim2.new(0, 1.5, 0.7, 0), 
-        Position = UDim2.new(0.66, -0.75, 0.15, 0), 
-        BackgroundColor3 = pa, 
-        BackgroundTransparency = 1, 
-        Parent = sf 
-    }) 
-    local tl = new("TextLabel", { 
-        Size = UDim2.new(0.33, 0, 1, 0), 
-        Position = UDim2.new(0, 0, 0, 0), 
-        BackgroundTransparency = 1, 
-        TextColor3 = pb, 
-        Font = Enum.Font.GothamBlack, 
-        TextSize = 12, 
-        Text = "PRIMO DUEL", 
-        TextStrokeColor3 = pd, 
-        TextStrokeTransparency = 0.3, 
-        TextTransparency = 1, 
-        TextXAlignment = Enum.TextXAlignment.Center, 
-        Parent = sf 
-    }) 
-    local fpslbl = new("TextLabel", { 
-        Size = UDim2.new(0.33, 0, 1, 0), 
-        Position = UDim2.new(0.33, 0, 0, 0), 
-        BackgroundTransparency = 1, 
-        TextColor3 = pb, 
-        Font = Enum.Font.Gotham, 
-        TextSize = 11, 
-        Text = "FPS: --", 
-        TextTransparency = 1, 
-        TextXAlignment = Enum.TextXAlignment.Center, 
-        Parent = sf 
-    }) 
-    local pinglbl = new("TextLabel", { 
-        Size = UDim2.new(0.33, 0, 1, 0), 
-        Position = UDim2.new(0.66, 0, 0, 0), 
-        BackgroundTransparency = 1, 
-        TextColor3 = pb, 
-        Font = Enum.Font.Gotham, 
-        TextSize = 11, 
-        Text = "PING: --ms", 
-        TextTransparency = 1, 
-        TextXAlignment = Enum.TextXAlignment.Center, 
-        Parent = sf 
-    }) 
-    local fc = 0 
-    local lu = tick() 
-    rs.RenderStepped:Connect(function(dt) 
-        fc = fc + 1 
-        local ct = tick() 
-        if ct - lu >= 1 then 
-            local f = math.floor(fc / (ct - lu)) 
-            fc = 0 
-            lu = ct 
-            fpslbl.Text = "FPS: " .. f 
-        end 
-        local p = game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue() 
-        pinglbl.Text = "PING: " .. math.floor(p) .. "ms" 
-    end) 
-    rs.Heartbeat:Connect(function(dt) 
-        sgrad2.Rotation = (sgrad2.Rotation + 80 * dt) % 360 
-        sstg2.Rotation = (sstg2.Rotation + 60 * dt) % 360 
-        if statsMovingDots then 
-            for _, d in pairs(statsMovingDots) do 
-                d.frame.Position = UDim2.new( 
-                    (d.frame.Position.X.Scale + d.sx * dt * 30) % 1, 0, 
-                    (d.frame.Position.Y.Scale + d.sy * dt * 30) % 1, 0 
-                ) 
-                d.frame.BackgroundTransparency = math.sin(tick() * 2 + d.pulse) * 0.1 + 0.4 
-            end 
-        end 
-    end) 
-    drag2(sf) 
-    uis.InputBegan:Connect(function(i, g) 
-        if not g and i.KeyCode == Enum.KeyCode.RightControl then 
-            sf.Visible = not sf.Visible 
-        end 
-    end) 
-    task.wait(1.5) 
-    sf.Visible = true 
-    ts:Create(sb, TweenInfo.new(0.6), {BackgroundTransparency = 0}):Play() 
-    ts:Create(sst2, TweenInfo.new(0.6), {Transparency = 0}):Play() 
-    task.wait(0.2) 
-    ts:Create(ld, TweenInfo.new(0.4), {BackgroundTransparency = 0.4}):Play() 
-    ts:Create(rd, TweenInfo.new(0.4), {BackgroundTransparency = 0.4}):Play() 
-    ts:Create(tl, TweenInfo.new(0.4), {TextTransparency = 0}):Play() 
-    ts:Create(fpslbl, TweenInfo.new(0.4), {TextTransparency = 0}):Play() 
-    ts:Create(pinglbl, TweenInfo.new(0.4), {TextTransparency = 0}):Play() 
-end 
+-- Stats UI
+local statsGui = Instance.new("ScreenGui")
+statsGui.Name = "StatsUI"
+statsGui.ResetOnSpawn = false
+statsGui.Parent = par
 
-task.spawn(animate) 
-task.spawn(statsUI) 
+local statsFrame = Instance.new("Frame")
+statsFrame.Size = UDim2.new(0, 200, 0, 60)
+statsFrame.Position = UDim2.new(0.5, -100, 0, 10)
+statsFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+statsFrame.BackgroundTransparency = 0
+statsFrame.BorderSizePixel = 0
+statsFrame.Parent = statsGui
+statsFrame.Active = true
+statsFrame.Draggable = true
 
-uis.InputBegan:Connect(function(i, g) 
-    if not g and i.KeyCode == Enum.KeyCode.RightControl then 
-        gui:Destroy() 
-    end 
+local statsCorner = Instance.new("UICorner")
+statsCorner.CornerRadius = UDim.new(0, 10)
+statsCorner.Parent = statsFrame
+
+local statsStroke = Instance.new("UIStroke")
+statsStroke.Color = pb
+statsStroke.Thickness = 2
+statsStroke.Parent = statsFrame
+
+local fpsLabel = Instance.new("TextLabel")
+fpsLabel.Size = UDim2.new(0.5, 0, 1, 0)
+fpsLabel.Position = UDim2.new(0, 0, 0, 0)
+fpsLabel.BackgroundTransparency = 1
+fpsLabel.Text = "FPS: 0"
+fpsLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
+fpsLabel.Font = Enum.Font.GothamBold
+fpsLabel.TextSize = 12
+fpsLabel.Parent = statsFrame
+
+local pingLabel = Instance.new("TextLabel")
+pingLabel.Size = UDim2.new(0.5, 0, 1, 0)
+pingLabel.Position = UDim2.new(0.5, 0, 0, 0)
+pingLabel.BackgroundTransparency = 1
+pingLabel.Text = "PING: 0ms"
+pingLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
+pingLabel.Font = Enum.Font.GothamBold
+pingLabel.TextSize = 12
+pingLabel.Parent = statsFrame
+
+local fc = 0
+local lu = tick()
+rs.RenderStepped:Connect(function(dt)
+    fc = fc + 1
+    local ct = tick()
+    if ct - lu >= 1 then
+        local f = math.floor(fc / (ct - lu))
+        fc = 0
+        lu = ct
+        fpsLabel.Text = "FPS: " .. f
+    end
+    local p = game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue()
+    pingLabel.Text = "PING: " .. math.floor(p) .. "ms"
+end)
+
+uis.InputBegan:Connect(function(i, g)
+    if not g and i.KeyCode == Enum.KeyCode.RightControl then
+        for _, toggle in pairs(toggles) do
+            toggle.gui.Enabled = not toggle.gui.Enabled
+        end
+        statsGui.Enabled = not statsGui.Enabled
+    end
 end)
