@@ -41,6 +41,173 @@ local vertSpeed = 35
 local movingDots = {} 
 local sprintMovingDots = {} 
 
+-- Small status GUI
+local statusGUI = Instance.new("ScreenGui")
+statusGUI.Name = "StatusGUI"
+statusGUI.ResetOnSpawn = false
+statusGUI.Parent = par
+statusGUI.Enabled = true
+
+local statusFrame = Instance.new("Frame")
+statusFrame.Size = UDim2.new(0, 200, 0, 120)
+statusFrame.Position = UDim2.new(1, -210, 0, 10)
+statusFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+statusFrame.BackgroundTransparency = 0.1
+statusFrame.BorderSizePixel = 0
+statusFrame.Parent = statusGUI
+
+local statusCorner = Instance.new("UICorner")
+statusCorner.CornerRadius = UDim.new(0, 8)
+statusCorner.Parent = statusFrame
+
+local statusStroke = Instance.new("UIStroke")
+statusStroke.Color = pb
+statusStroke.Thickness = 1.5
+statusStroke.Transparency = 0.2
+statusStroke.Parent = statusFrame
+
+local statusTitle = Instance.new("TextLabel")
+statusTitle.Size = UDim2.new(1, 0, 0, 25)
+statusTitle.Position = UDim2.new(0, 0, 0, 0)
+statusTitle.BackgroundTransparency = 1
+statusTitle.Text = "ACTIVE FEATURES"
+statusTitle.TextColor3 = pb
+statusTitle.Font = Enum.Font.GothamBold
+statusTitle.TextSize = 12
+statusTitle.Parent = statusFrame
+
+local statusList = Instance.new("Frame")
+statusList.Size = UDim2.new(1, -10, 1, -35)
+statusList.Position = UDim2.new(0, 5, 0, 30)
+statusList.BackgroundTransparency = 1
+statusList.Parent = statusFrame
+
+local statusLayout = Instance.new("UIListLayout")
+statusLayout.FillDirection = Enum.FillDirection.Vertical
+statusLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+statusLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+statusLayout.SortOrder = Enum.SortOrder.LayoutOrder
+statusLayout.Padding = UDim.new(0, 3)
+statusLayout.Parent = statusList
+
+-- Table to store status labels
+local statusLabels = {}
+
+local function createStatusLabel(featureName, color)
+    local labelFrame = Instance.new("Frame")
+    labelFrame.Size = UDim2.new(1, 0, 0, 18)
+    labelFrame.BackgroundTransparency = 1
+    labelFrame.Parent = statusList
+    labelFrame.Visible = false
+    
+    local dot = Instance.new("Frame")
+    dot.Size = UDim2.new(0, 6, 0, 6)
+    dot.Position = UDim2.new(0, 0, 0.5, -3)
+    dot.BackgroundColor3 = color or pb
+    dot.BorderSizePixel = 0
+    dot.Parent = labelFrame
+    
+    local dotCorner = Instance.new("UICorner")
+    dotCorner.CornerRadius = UDim.new(1, 0)
+    dotCorner.Parent = dot
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -10, 1, 0)
+    label.Position = UDim2.new(0, 10, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = featureName
+    label.TextColor3 = Color3.fromRGB(0, 0, 0)
+    label.Font = Enum.Font.Gotham
+    label.TextSize = 11
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = labelFrame
+    
+    return {
+        frame = labelFrame,
+        label = label,
+        dot = dot
+    }
+end
+
+-- Create status labels for all features
+statusLabels.speed55 = createStatusLabel("SPEED [NO STEAL]", pl)
+statusLabels.speedSteal = createStatusLabel("SPEED [STEAL]", pl)
+statusLabels.spinbot = createStatusLabel("SPINBOT", pa)
+statusLabels.autograb = createStatusLabel("AUTO GRAB", pb)
+statusLabels.antirag = createStatusLabel("ANTI RAGDOLL", pg)
+statusLabels.floaton = createStatusLabel("FLOAT", pa)
+statusLabels.infjump = createStatusLabel("INF JUMP", pl)
+statusLabels.xrayon = createStatusLabel("X-RAY", pb)
+
+-- Function to update status GUI visibility
+local function updateStatusGUI()
+    local anyActive = false
+    for name, label in pairs(statusLabels) do
+        local isActive = false
+        if name == "speed55" then isActive = speed55 end
+        if name == "speedSteal" then isActive = speedSteal end
+        if name == "spinbot" then isActive = spinbot end
+        if name == "autograb" then isActive = autograb end
+        if name == "antirag" then isActive = antirag end
+        if name == "floaton" then isActive = floaton end
+        if name == "infjump" then isActive = infjump end
+        if name == "xrayon" then isActive = xrayon end
+        
+        label.frame.Visible = isActive
+        if isActive then
+            anyActive = true
+        end
+    end
+    
+    -- Animate status frame appearance
+    if anyActive then
+        if statusFrame.Visible == false then
+            statusFrame.Visible = true
+            ts:Create(statusFrame, TweenInfo.new(0.3), {
+                Position = UDim2.new(1, -210, 0, 10),
+                BackgroundTransparency = 0.1
+            }):Play()
+        end
+    else
+        ts:Create(statusFrame, TweenInfo.new(0.3), {
+            Position = UDim2.new(1, -210, 0, 10),
+            BackgroundTransparency = 1
+        }):Play()
+        task.wait(0.3)
+        statusFrame.Visible = false
+    end
+end
+
+-- Make status frame draggable
+local function drag(obj)
+    local d, i, s, p
+    obj.InputBegan:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+            d = true
+            s = inp.Position
+            p = obj.Position
+            inp.Changed:Connect(function()
+                if inp.UserInputState == Enum.UserInputState.End then
+                    d = false
+                end
+            end)
+        end
+    end)
+    obj.InputChanged:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch then
+            i = inp
+        end
+    end)
+    uis.InputChanged:Connect(function(inp)
+        if inp == i and d then
+            local delta = inp.Position - s
+            obj.Position = UDim2.new(p.X.Scale, p.X.Offset + delta.X, p.Y.Scale, p.Y.Offset + delta.Y)
+        end
+    end)
+end
+
+drag(statusFrame)
+
 local function spinOn(c) 
     local hrp = c:WaitForChild("HumanoidRootPart", 5) 
     if not hrp then return end 
@@ -82,6 +249,7 @@ local function toggleSpin(b)
             spinOff(plr.Character) 
         end 
     end 
+    updateStatusGUI()
 end 
 
 local function createDots(parent) 
@@ -227,6 +395,8 @@ function anti.Enable(m)
     table.insert(ragConns, plr.CharacterAdded:Connect(onChar)) 
     setupCam() 
     task.spawn(antiLoop) 
+    antirag = true
+    updateStatusGUI()
     print("anti on") 
 end 
 
@@ -235,6 +405,8 @@ function anti.Disable()
     antiMode = nil 
     killConns() 
     charCache = {} 
+    antirag = false
+    updateStatusGUI()
     print("anti off") 
 end 
 
@@ -549,6 +721,7 @@ local function startGrab()
             attemptSteal(p, tar) 
         end 
     end) 
+    updateStatusGUI()
     print("grab on") 
 end 
 
@@ -571,6 +744,7 @@ local function stopGrab()
     animalCache = {} 
     promptMem = {} 
     stealMem = {} 
+    updateStatusGUI()
     print("grab off") 
 end 
 
@@ -619,6 +793,7 @@ local function startFloat()
             target = nil 
         end 
     end) 
+    updateStatusGUI()
     print("float on") 
 end 
 
@@ -636,10 +811,11 @@ local function stopFloat()
             h.AssemblyLinearVelocity = Vector3.new(0, 0, 0) 
         end 
     end 
+    updateStatusGUI()
     print("float off") 
 end 
 
-local function drag(obj) 
+local function drag2(obj) 
     local d, i, s, p 
     obj.InputBegan:Connect(function(inp) 
         if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then 
@@ -744,7 +920,7 @@ local stgrad = new("UIGradient", {
     Parent = stroke 
 }) 
 
-drag(main) 
+drag2(main) 
 
 local sprint = new("Frame", { 
     Name = "sprint", 
@@ -793,7 +969,7 @@ local sstg = new("UIGradient", {
     Parent = sst 
 }) 
 
-drag(sprint) 
+drag2(sprint) 
 
 local tc = new("Frame", { 
     Size = UDim2.new(1, -16, 0, 24), 
@@ -1015,14 +1191,17 @@ local function xrayToggle(e)
         xrayConns = {} 
         xrayOg = {} 
     end 
+    updateStatusGUI()
 end 
 
 local speed1 = makeToggle(sprint, "SPEED [ NO STEALING ]", 34, function(v) 
     speed55 = v 
+    updateStatusGUI()
 end, false) 
 
 local speed2 = makeToggle(sprint, "SPEED [ STEALING ]", 66, function(v) 
     speedSteal = v 
+    updateStatusGUI()
 end, false) 
 
 local spintog = makeToggle(sprint, "SPINBOT", 98, function(v) 
@@ -1052,6 +1231,7 @@ rs.Heartbeat:Connect(function()
                 carry = true 
                 if speed55 then 
                     speed55 = false 
+                    updateStatusGUI()
                 end 
                 break 
             end 
@@ -1093,6 +1273,7 @@ end, false)
 
 local jmptog = makeToggle(oc, "INF JUMP", 69, function(v) 
     infjump = v 
+    updateStatusGUI()
 end, false) 
 
 local xraytog = makeToggle(oc, "X-RAY", 101, function(v) 
@@ -1316,7 +1497,7 @@ local function statsUI()
             end 
         end 
     end) 
-    drag(sf) 
+    drag2(sf) 
     uis.InputBegan:Connect(function(i, g) 
         if not g and i.KeyCode == Enum.KeyCode.RightControl then 
             sf.Visible = not sf.Visible 
