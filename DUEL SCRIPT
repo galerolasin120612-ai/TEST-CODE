@@ -161,26 +161,32 @@ for _, tab in ipairs({"Combat", "Protect", "Visual", "Settings"}) do CreatePage(
 TabButtons["Combat"].TextColor3 = COLORS.TextActive
 Pages["Combat"].Visible = true
 
--------------------------------------------------------------------------
--- SAFE FOLLOW MODULE (LOCK PLAYER)
--------------------------------------------------------------------------
-local SafeFollow = {Enabled=false,Locked=false,FOLLOW_DISTANCE=6,lastMove=0,gui=nil,btn=nil,targetChar=nil,heartbeatConn=nil,charAddedConn=nil}
+local function makeFloatBtn(gui, text, yScale)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 130, 0, 40)
+    btn.Position = UDim2.new(0.5, -65, yScale, 0)
+    btn.Text = text
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 14
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.BackgroundColor3 = Color3.fromRGB(43,160,235)
+    btn.AutoButtonColor = false
+    btn.Parent = gui
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,8)
+    local st = Instance.new("UIStroke", btn); st.Color = Color3.fromRGB(200,200,200); st.Thickness = 1.5
+    return btn
+end
 
-local function createSafeFollowUI()
-    SafeFollow.gui = Instance.new("ScreenGui"); SafeFollow.gui.Name="SafeFollowUI"; SafeFollow.gui.ResetOnSpawn=false; SafeFollow.gui.Enabled=false; SafeFollow.gui.Parent=CoreGui
-    SafeFollow.btn = Instance.new("TextButton"); SafeFollow.btn.Size=UDim2.new(0,120,0,40); SafeFollow.btn.Position=UDim2.new(0.5,-60,0.8,0)
-    SafeFollow.btn.Text="LOCK: OFF"; SafeFollow.btn.Font=Enum.Font.GothamBold; SafeFollow.btn.TextSize=14
-    SafeFollow.btn.TextColor3=Color3.new(1,1,1); SafeFollow.btn.BackgroundColor3=Color3.fromRGB(43,160,235); SafeFollow.btn.AutoButtonColor=true; SafeFollow.btn.Parent=SafeFollow.gui
-    Instance.new("UICorner", SafeFollow.btn).CornerRadius=UDim.new(0,8)
-    local dragging,dragInput,dragStart,startPos
-    SafeFollow.btn.InputBegan:Connect(function(input)
+local function addDragToBtn(btn)
+    local dragging, dragInput, dragStart, startPos
+    btn.InputBegan:Connect(function(input)
         if UILocked then return end
         if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
-            dragging=true; dragStart=input.Position; startPos=SafeFollow.btn.Position
+            dragging=true; dragStart=input.Position; startPos=btn.Position
             input.Changed:Connect(function() if input.UserInputState==Enum.UserInputState.End then dragging=false end end)
         end
     end)
-    SafeFollow.btn.InputChanged:Connect(function(input)
+    btn.InputChanged:Connect(function(input)
         if UILocked then dragging=false; return end
         if input.UserInputType==Enum.UserInputType.MouseMovement or input.UserInputType==Enum.UserInputType.Touch then dragInput=input end
     end)
@@ -188,9 +194,20 @@ local function createSafeFollowUI()
         if UILocked then dragging=false; return end
         if input==dragInput and dragging then
             local delta=input.Position-dragStart
-            SafeFollow.btn.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+delta.X,startPos.Y.Scale,startPos.Y.Offset+delta.Y)
+            btn.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+delta.X,startPos.Y.Scale,startPos.Y.Offset+delta.Y)
         end
     end)
+end
+
+-------------------------------------------------------------------------
+-- SAFE FOLLOW
+-------------------------------------------------------------------------
+local SafeFollow = {Enabled=false,Locked=false,FOLLOW_DISTANCE=6,lastMove=0,gui=nil,btn=nil,targetChar=nil,heartbeatConn=nil,charAddedConn=nil}
+
+local function createSafeFollowUI()
+    SafeFollow.gui = Instance.new("ScreenGui"); SafeFollow.gui.Name="SafeFollowUI"; SafeFollow.gui.ResetOnSpawn=false; SafeFollow.gui.Enabled=false; SafeFollow.gui.Parent=CoreGui
+    SafeFollow.btn = makeFloatBtn(SafeFollow.gui, "LOCK: OFF", 0.8)
+    addDragToBtn(SafeFollow.btn)
     SafeFollow.btn.MouseButton1Click:Connect(function()
         SafeFollow.Locked=not SafeFollow.Locked
         if SafeFollow.Locked then SafeFollow.btn.Text="LOCK: ON"; SafeFollow.btn.BackgroundColor3=Color3.fromRGB(255,65,65)
@@ -250,247 +267,164 @@ local function disableSafeFollow()
 end
 
 -------------------------------------------------------------------------
--- FAST FLOAT MODULE (WITH BUTTON LIKE LOCK PLAYER)
+-- SPIN (with GUI like Lock Player)
 -------------------------------------------------------------------------
-local FastFloat = {
-    Enabled = false,
-    isFloating = false,
-    FloatHeight = 8,
-    FloatSpeed = 250,
-    Damping = 65,
-    Deadzone = 0.15,
-    
-    -- UI Elements (kagaya ng Lock Player)
-    gui = nil,
-    btn = nil,
-    
-    -- Physics objects
-    attachment = nil,
-    vectorForce = nil,
-    connection = nil,
-    charAddedConn = nil
-}
+local Spin={Enabled=false,Speed=30,Conn=nil,gui=nil,btn=nil}
 
-local function getCharacterMass(char)
-    local mass = 0
-    for _, part in ipairs(char:GetDescendants()) do
-        if part:IsA("BasePart") then
-            mass = mass + part:GetMass()
+local function setupSpin(char)
+    local hrp=char:WaitForChild("HumanoidRootPart")
+    local e=hrp:FindFirstChild("ElevenSpin"); if e then e:Destroy() end
+    local bav=Instance.new("BodyAngularVelocity"); bav.Name="ElevenSpin"
+    bav.MaxTorque=Vector3.new(0,math.huge,0); bav.P=100000
+    bav.AngularVelocity=Vector3.new(0,0,0); bav.Parent=hrp
+end
+lp.CharacterAdded:Connect(function(char) setupSpin(char) end)
+if lp.Character then setupSpin(lp.Character) end
+
+local function createSpinUI()
+    Spin.gui=Instance.new("ScreenGui"); Spin.gui.Name="SpinUI"; Spin.gui.ResetOnSpawn=false; Spin.gui.Enabled=false; Spin.gui.Parent=CoreGui
+    Spin.btn=makeFloatBtn(Spin.gui,"SPIN: OFF",0.58)
+    addDragToBtn(Spin.btn)
+    Spin.btn.MouseButton1Click:Connect(function()
+        Spin.Enabled=not Spin.Enabled
+        if Spin.Enabled then
+            Spin.btn.Text="SPIN: ON"; Spin.btn.BackgroundColor3=Color3.fromRGB(255,65,65)
+        else
+            Spin.btn.Text="SPIN: OFF"; Spin.btn.BackgroundColor3=Color3.fromRGB(43,160,235)
+            local char=lp.Character; if char then
+                local hrp=char:FindFirstChild("HumanoidRootPart")
+                local bav=hrp and hrp:FindFirstChild("ElevenSpin"); if bav then bav.AngularVelocity=Vector3.new(0,0,0) end
+                local hum=char:FindFirstChildOfClass("Humanoid"); if hum then hum.AutoRotate=true end
+            end
         end
+    end)
+end
+
+local function enableSpin()
+    if not Spin.gui then createSpinUI() end
+    Spin.gui.Enabled=true
+    if Spin.Conn then Spin.Conn:Disconnect() end
+    Spin.Conn=RunService.RenderStepped:Connect(function()
+        local char=lp.Character; if not char then return end
+        local hum=char:FindFirstChildOfClass("Humanoid")
+        local hrp=char:FindFirstChild("HumanoidRootPart")
+        local bav=hrp and hrp:FindFirstChild("ElevenSpin")
+        if Spin.Enabled and bav then bav.AngularVelocity=Vector3.new(0,Spin.Speed,0); if hum then hum.AutoRotate=false end
+        elseif bav then bav.AngularVelocity=Vector3.new(0,0,0); if hum then hum.AutoRotate=true end end
+    end)
+end
+
+local function disableSpin()
+    Spin.Enabled=false
+    if Spin.btn then Spin.btn.Text="SPIN: OFF"; Spin.btn.BackgroundColor3=Color3.fromRGB(43,160,235) end
+    if Spin.Conn then Spin.Conn:Disconnect(); Spin.Conn=nil end
+    if Spin.gui then Spin.gui.Enabled=false end
+    local char=lp.Character; if char then
+        local hrp=char:FindFirstChild("HumanoidRootPart")
+        local bav=hrp and hrp:FindFirstChild("ElevenSpin"); if bav then bav.AngularVelocity=Vector3.new(0,0,0) end
+        local hum=char:FindFirstChildOfClass("Humanoid"); if hum then hum.AutoRotate=true end
+    end
+end
+
+-------------------------------------------------------------------------
+-- FLOAT MODULE (hover - fixed fling)
+-------------------------------------------------------------------------
+local Float={Enabled=false,gui=nil,btn=nil,attachment=nil,vectorForce=nil,connection=nil,charConn=nil,lastMassUpdate=0,cachedMass=0,floatHeight=8,floatSpeed=18,damping=10,massCacheTime=2,deadzone=0.15}
+
+local function floatGetMass()
+    local char=lp.Character; if not char then return 0 end
+    local mass=0
+    for _,part in ipairs(char:GetDescendants()) do
+        if part:IsA("BasePart") or part:IsA("MeshPart") then mass+=part:GetMass() end
     end
     return mass
 end
 
-local function startFloating()
-    if FastFloat.isFloating then return end
-    
-    local char = lp.Character
-    if not char then return end
-    
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then return end
-    
-    FastFloat.isFloating = true
-    
-    local mass = getCharacterMass(char)
-    
-    FastFloat.attachment = Instance.new("Attachment")
-    FastFloat.attachment.Parent = root
-    
-    FastFloat.vectorForce = Instance.new("VectorForce")
-    FastFloat.vectorForce.Attachment0 = FastFloat.attachment
-    FastFloat.vectorForce.RelativeTo = Enum.ActuatorRelativeTo.World
-    FastFloat.vectorForce.ApplyAtCenterOfMass = true
-    FastFloat.vectorForce.Parent = root
-    
-    FastFloat.connection = RunService.Heartbeat:Connect(function()
-        if not FastFloat.isFloating or not FastFloat.Enabled then
-            return
-        end
-        
-        local char = lp.Character
-        if not char then return end
-        
-        local root = char:FindFirstChild("HumanoidRootPart")
-        if not root then return end
-        
-        local rayParams = RaycastParams.new()
-        rayParams.FilterDescendantsInstances = {char}
-        rayParams.FilterType = Enum.RaycastFilterType.Exclude
-        
-        local ray = workspace:Raycast(root.Position, Vector3.new(0, -500, 0), rayParams)
-        if not ray then return end
-        
-        local targetY = ray.Position.Y + FastFloat.FloatHeight
-        local diff = targetY - root.Position.Y
-        local velocityY = root.AssemblyLinearVelocity.Y
-        
-        -- Anti-talsik clamp
-        diff = math.clamp(diff, -6, 6)
-        velocityY = math.clamp(velocityY, -30, 30)
-        
-        if math.abs(diff) < FastFloat.Deadzone then
-            diff = 0
-        end
-        
-        local forceY = mass * (FastFloat.FloatSpeed * diff - FastFloat.Damping * velocityY + workspace.Gravity)
-        FastFloat.vectorForce.Force = Vector3.new(0, forceY, 0)
-    end)
-    
-    -- Update button text (same style as Lock Player)
-    if FastFloat.btn then
-        FastFloat.btn.Text = "FLOAT: ON"
-        FastFloat.btn.BackgroundColor3 = Color3.fromRGB(255, 65, 65)  -- Red pag ON (same as Lock Player)
-    end
+local function floatSetup()
+    local char=lp.Character; if not char then return end
+    local hrp=char:FindFirstChild("HumanoidRootPart"); if not hrp then return end
+    if Float.vectorForce then pcall(function() Float.vectorForce:Destroy() end) end
+    if Float.attachment then pcall(function() Float.attachment:Destroy() end) end
+    Float.attachment=Instance.new("Attachment"); Float.attachment.Name="FloatAttachment"; Float.attachment.Parent=hrp
+    Float.vectorForce=Instance.new("VectorForce"); Float.vectorForce.Name="FloatForce"
+    Float.vectorForce.Attachment0=Float.attachment; Float.vectorForce.ApplyAtCenterOfMass=true
+    Float.vectorForce.RelativeTo=Enum.ActuatorRelativeTo.World
+    Float.vectorForce.Force=Vector3.new(0,0,0); Float.vectorForce.Parent=hrp
 end
 
-local function stopFloating()
-    FastFloat.isFloating = false
-    
-    if FastFloat.connection then
-        FastFloat.connection:Disconnect()
-        FastFloat.connection = nil
-    end
-    
-    if FastFloat.vectorForce then
-        FastFloat.vectorForce:Destroy()
-        FastFloat.vectorForce = nil
-    end
-    
-    if FastFloat.attachment then
-        FastFloat.attachment:Destroy()
-        FastFloat.attachment = nil
-    end
-    
-    -- Update button text (same style as Lock Player)
-    if FastFloat.btn then
-        FastFloat.btn.Text = "FLOAT: OFF"
-        FastFloat.btn.BackgroundColor3 = Color3.fromRGB(43, 160, 235)  -- Blue pag OFF (same as Lock Player)
-    end
+local function startFloat()
+    if Float.Enabled then return end
+    local char=lp.Character; if not char then return end
+    local hrp=char:FindFirstChild("HumanoidRootPart"); local hum=char:FindFirstChild("Humanoid")
+    if not hrp or not hum then return end
+    Float.Enabled=true; floatSetup()
+    Float.cachedMass=floatGetMass(); Float.lastMassUpdate=tick()
+    hum.JumpPower=0
+    if Float.connection then Float.connection:Disconnect() end
+    Float.connection=RunService.Heartbeat:Connect(function()
+        if not Float.Enabled then return end
+        local c=lp.Character; if not c then return end
+        local rp=c:FindFirstChild("HumanoidRootPart"); if not rp then return end
+        if not Float.vectorForce or not Float.vectorForce.Parent then return end
+        local now=tick()
+        if now-Float.lastMassUpdate>Float.massCacheTime then Float.cachedMass=floatGetMass(); Float.lastMassUpdate=now end
+        local rayParams=RaycastParams.new()
+        rayParams.FilterDescendantsInstances={c}
+        rayParams.FilterType=Enum.RaycastFilterType.Exclude
+        local rayResult=Workspace:Raycast(rp.Position,Vector3.new(0,-500,0),rayParams)
+        local groundY=rayResult and rayResult.Position.Y or (rp.Position.Y-Float.floatHeight)
+        local targetY=groundY+Float.floatHeight
+        local diff=targetY-rp.Position.Y
+        local velocityY=rp.AssemblyLinearVelocity.Y
+        if math.abs(diff)<Float.deadzone and math.abs(velocityY)<0.4 then diff=0; velocityY=0 end
+        -- Clamp force para hindi mag-fling
+        local rawForce=Float.cachedMass*(Float.floatSpeed*diff - Float.damping*velocityY + Workspace.Gravity)
+        local clampedForce=math.clamp(rawForce, -Float.cachedMass*120, Float.cachedMass*120)
+        Float.vectorForce.Force=Vector3.new(0,clampedForce,0)
+    end)
 end
 
-local function createFastFloatUI()
-    FastFloat.gui = Instance.new("ScreenGui")
-    FastFloat.gui.Name = "FastFloatUI"
-    FastFloat.gui.ResetOnSpawn = false
-    FastFloat.gui.Enabled = false
-    FastFloat.gui.Parent = CoreGui
-    
-    FastFloat.btn = Instance.new("TextButton")
-    FastFloat.btn.Size = UDim2.new(0, 140, 0, 45)  -- Medyo mas mahaba para sa "FLOAT: ON/OFF"
-    FastFloat.btn.Position = UDim2.new(0.5, -70, 0.7, 0)  -- Medyo mas mataas konti sa Lock Player
-    FastFloat.btn.Text = "FLOAT: OFF"
-    FastFloat.btn.Font = Enum.Font.GothamBold
-    FastFloat.btn.TextSize = 16
-    FastFloat.btn.TextColor3 = Color3.new(1, 1, 1)
-    FastFloat.btn.BackgroundColor3 = Color3.fromRGB(43, 160, 235)  -- Blue pag OFF (same as Lock Player)
-    FastFloat.btn.AutoButtonColor = true
-    FastFloat.btn.Parent = FastFloat.gui
-    
-    Instance.new("UICorner", FastFloat.btn).CornerRadius = UDim.new(0, 8)
-    
-    -- Dragging functionality (exactly like Lock Player)
-    local dragging, dragInput, dragStart, startPos
-    
-    FastFloat.btn.InputBegan:Connect(function(input)
-        if UILocked then return end
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = FastFloat.btn.Position
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
-        end
-    end)
-    
-    FastFloat.btn.InputChanged:Connect(function(input)
-        if UILocked then
-            dragging = false
-            return
-        end
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-            dragInput = input
-        end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(input)
-        if UILocked then
-            dragging = false
-            return
-        end
-        if input == dragInput and dragging then
-            local delta = input.Position - dragStart
-            FastFloat.btn.Position = UDim2.new(
-                startPos.X.Scale,
-                startPos.X.Offset + delta.X,
-                startPos.Y.Scale,
-                startPos.Y.Offset + delta.Y
-            )
-        end
-    end)
-    
-    -- Toggle functionality (click button to toggle float on/off)
-    FastFloat.btn.MouseButton1Click:Connect(function()
-        if not FastFloat.Enabled then return end  -- Only works if enabled in GUI
-        
-        if FastFloat.isFloating then
-            stopFloating()
+local function stopFloat()
+    if not Float.Enabled then return end
+    Float.Enabled=false
+    if Float.connection then Float.connection:Disconnect(); Float.connection=nil end
+    if Float.vectorForce then pcall(function() Float.vectorForce:Destroy() end); Float.vectorForce=nil end
+    if Float.attachment then pcall(function() Float.attachment:Destroy() end); Float.attachment=nil end
+    local char=lp.Character; if char then local hum=char:FindFirstChild("Humanoid"); if hum then hum.JumpPower=50 end end
+    if Float.btn then Float.btn.Text="FLOAT: OFF"; Float.btn.BackgroundColor3=Color3.fromRGB(43,160,235) end
+end
+
+local function createFloatUI()
+    Float.gui=Instance.new("ScreenGui"); Float.gui.Name="FloatUI"; Float.gui.ResetOnSpawn=false; Float.gui.Enabled=false; Float.gui.Parent=CoreGui
+    Float.btn=makeFloatBtn(Float.gui,"FLOAT: OFF",0.65)
+    addDragToBtn(Float.btn)
+    Float.btn.MouseButton1Click:Connect(function()
+        if Float.Enabled then
+            stopFloat(); Float.btn.Text="FLOAT: OFF"; Float.btn.BackgroundColor3=Color3.fromRGB(43,160,235)
         else
-            startFloating()
+            startFloat(); Float.btn.Text="FLOAT: ON"; Float.btn.BackgroundColor3=Color3.fromRGB(255,65,65)
         end
     end)
 end
 
-local function enableFastFloat()
-    if FastFloat.Enabled then return end
-    FastFloat.Enabled = true
-    
-    if not FastFloat.gui then
-        createFastFloatUI()
-    end
-    FastFloat.gui.Enabled = true
-    
-    -- Handle character respawn
-    FastFloat.charAddedConn = lp.CharacterAdded:Connect(function()
-        task.wait(1)
-        if FastFloat.Enabled and FastFloat.isFloating then
-            task.wait(0.5)
-            stopFloating()
-            startFloating()
+local function enableFloat()
+    if not Float.gui then createFloatUI() end
+    Float.gui.Enabled=true
+    if Float.charConn then Float.charConn:Disconnect() end
+    Float.charConn=lp.CharacterAdded:Connect(function()
+        local wasEnabled=Float.Enabled; stopFloat()
+        if wasEnabled then
+            task.wait(0.5); startFloat()
+            if Float.btn then Float.btn.Text="FLOAT: ON"; Float.btn.BackgroundColor3=Color3.fromRGB(255,65,65) end
         end
     end)
 end
 
-local function disableFastFloat()
-    if not FastFloat.Enabled then return end
-    
-    stopFloating()
-    FastFloat.Enabled = false
-    
-    if FastFloat.gui then
-        FastFloat.gui.Enabled = false
-    end
-    
-    if FastFloat.charAddedConn then
-        FastFloat.charAddedConn:Disconnect()
-        FastFloat.charAddedConn = nil
-    end
+local function disableFloat()
+    stopFloat()
+    if Float.gui then Float.gui.Enabled=false end
+    if Float.charConn then Float.charConn:Disconnect(); Float.charConn=nil end
 end
-
--- Optional: F keybind (same as Lock Player may keybind din)
-UserInputService.InputBegan:Connect(function(input, gp)
-    if gp then return end
-    if input.KeyCode == Enum.KeyCode.F and FastFloat.Enabled then
-        if FastFloat.isFloating then
-            stopFloating()
-        else
-            startFloating()
-        end
-    end
-end)
 
 -------------------------------------------------------------------------
 -- ANTI TURRET
@@ -511,10 +445,7 @@ end
 -------------------------------------------------------------------------
 -- ANTI-RAGDOLL
 -------------------------------------------------------------------------
-local antiRagdollMode=nil
-local ragdollConnections={}
-local cachedCharData={}
-
+local antiRagdollMode=nil; local ragdollConnections={}; local cachedCharData={}
 local function cacheCharacterData()
     local char=lp.Character; if not char then return false end
     local hum=char:FindFirstChildOfClass("Humanoid"); local root=char:FindFirstChild("HumanoidRootPart")
@@ -522,8 +453,7 @@ local function cacheCharacterData()
     cachedCharData={character=char,humanoid=hum,root=root}; return true
 end
 local function disconnectAllRagdoll()
-    for _,conn in ipairs(ragdollConnections) do pcall(function() conn:Disconnect() end) end
-    ragdollConnections={}
+    for _,conn in ipairs(ragdollConnections) do pcall(function() conn:Disconnect() end) end; ragdollConnections={}
 end
 local function isRagdolled()
     if not cachedCharData.humanoid then return false end
@@ -548,10 +478,8 @@ local function EnableAntiRagdoll()
     if antiRagdollMode=="v1" then return end
     if not cacheCharacterData() then return end
     antiRagdollMode="v1"
-    local camConn=RunService.RenderStepped:Connect(function() local cam=Workspace.CurrentCamera; if cam and cachedCharData.humanoid then cam.CameraSubject=cachedCharData.humanoid end end)
-    table.insert(ragdollConnections,camConn)
-    local respawnConn=lp.CharacterAdded:Connect(function() task.wait(0.5); cacheCharacterData() end)
-    table.insert(ragdollConnections,respawnConn)
+    table.insert(ragdollConnections,RunService.RenderStepped:Connect(function() local cam=Workspace.CurrentCamera; if cam and cachedCharData.humanoid then cam.CameraSubject=cachedCharData.humanoid end end))
+    table.insert(ragdollConnections,lp.CharacterAdded:Connect(function() task.wait(0.5); cacheCharacterData() end))
     task.spawn(v1HeartbeatLoop)
 end
 local function DisableAntiRagdoll() antiRagdollMode=nil; disconnectAllRagdoll(); cachedCharData={} end
@@ -559,16 +487,10 @@ local function DisableAntiRagdoll() antiRagdollMode=nil; disconnectAllRagdoll();
 -------------------------------------------------------------------------
 -- AUTO GRAB
 -------------------------------------------------------------------------
-local AUTO_GRAB_ENABLED=false
-local AUTO_STEAL_PROX_RADIUS=20
-local allAnimalsCache={}
-local PromptMemoryCache={}
-local InternalStealCache={}
-local LastTargetUID=nil
-local IsStealing=false
-local StealProgress=0
-local CurrentStealTarget=nil
-local stealConnection=nil
+local AUTO_GRAB_ENABLED=false; local AUTO_STEAL_PROX_RADIUS=20
+local allAnimalsCache={}; local PromptMemoryCache={}; local InternalStealCache={}
+local LastTargetUID=nil; local IsStealing=false; local StealProgress=0
+local CurrentStealTarget=nil; local stealConnection=nil
 
 local function isMyBase(plotName)
     if not Workspace:FindFirstChild("Plots") then return false end
@@ -620,7 +542,7 @@ local function buildStealCallbacks(prompt)
     if ok2 and type(conns2)=="table" then for _,conn in ipairs(conns2) do if type(conn.Function)=="function" then table.insert(data.triggerCallbacks,conn.Function) end end end
     if (#data.holdCallbacks>0) or (#data.triggerCallbacks>0) then InternalStealCache[prompt]=data end
 end
-local function executeInternalStealAsync(prompt, animalData)
+local function executeInternalStealAsync(prompt,animalData)
     local data=InternalStealCache[prompt]; if not data or not data.ready then return false end
     data.ready=false; IsStealing=true; StealProgress=0; CurrentStealTarget=animalData
     task.spawn(function()
@@ -657,28 +579,21 @@ local function startAutoGrabLoop()
         if prompt then buildStealCallbacks(prompt); if InternalStealCache[prompt] then executeInternalStealAsync(prompt,targetAnimal) end end
     end)
 end
-initializeAutoGrabScanner()
-startAutoGrabLoop()
+initializeAutoGrabScanner(); startAutoGrabLoop()
 
 -------------------------------------------------------------------------
 -- AUTO WALK
 -------------------------------------------------------------------------
-local AutoWalkActive=false
-local autoWalkEnabled=false
-local AW_VELOCITY_SPEED=58.37
-local AW_SECOND_PHASE_SPEED=29.4
-local AW_JUMP_VELOCITY=50
-
+local AutoWalkActive=false; local autoWalkEnabled=false
+local AW_VELOCITY_SPEED=58.37; local AW_SECOND_PHASE_SPEED=29.4; local AW_JUMP_VELOCITY=50
 local aw_path1={{pos=Vector3.new(-470.6,-5.9,34.4)},{pos=Vector3.new(-484.2,-3.9,21.4)},{pos=Vector3.new(-475.6,-5.8,29.3)},{pos=Vector3.new(-473.4,-5.9,111)}}
 local aw_path2={{pos=Vector3.new(-474.7,-5.9,91.0)},{pos=Vector3.new(-483.4,-3.9,97.3)},{pos=Vector3.new(-474.7,-5.9,91.0)},{pos=Vector3.new(-476.1,-5.5,25.4)}}
 
 local aw_gui=Instance.new("ScreenGui"); aw_gui.Name="AutoWalkGui"; aw_gui.ResetOnSpawn=false; aw_gui.Enabled=false; aw_gui.Parent=lp:WaitForChild("PlayerGui")
-
 aw_panel=Instance.new("Frame")
-aw_panel.Size=UDim2.new(0,180,0,175)
-aw_panel.Position=UDim2.new(0,800,0,400)
-aw_panel.BackgroundColor3=Color3.fromRGB(255,255,255)
-aw_panel.BorderSizePixel=0; aw_panel.Parent=aw_gui; aw_panel.Active=true
+aw_panel.Size=UDim2.new(0,180,0,175); aw_panel.Position=UDim2.new(0,800,0,400)
+aw_panel.BackgroundColor3=Color3.fromRGB(255,255,255); aw_panel.BorderSizePixel=0
+aw_panel.Parent=aw_gui; aw_panel.Active=true
 Instance.new("UICorner",aw_panel).CornerRadius=UDim.new(0,14)
 local aw_stroke=Instance.new("UIStroke",aw_panel); aw_stroke.Thickness=2; aw_stroke.Color=Color3.fromRGB(100,100,100); aw_stroke.Transparency=0.4
 
@@ -706,8 +621,7 @@ end
 local aw_particleFolder=Instance.new("Folder",aw_panel)
 local function aw_spawnParticle()
     local p=Instance.new("Frame"); p.Parent=aw_particleFolder
-    p.Size=UDim2.fromOffset(math.random(4,8),math.random(4,8))
-    p.Position=UDim2.fromScale(math.random(),math.random())
+    p.Size=UDim2.fromOffset(math.random(4,8),math.random(4,8)); p.Position=UDim2.fromScale(math.random(),math.random())
     p.BackgroundColor3=Color3.fromRGB(0,0,0); p.BackgroundTransparency=0.6; p.BorderSizePixel=0
     Instance.new("UICorner",p).CornerRadius=UDim.new(1,0)
     local life=math.random(2,4)
@@ -974,15 +888,6 @@ local function disableInfJump()
 end
 
 -------------------------------------------------------------------------
--- SPIN
--------------------------------------------------------------------------
-local Spin={Enabled=false,Speed=30,Conn=nil}
-local function setupSpin(char) local hrp=char:WaitForChild("HumanoidRootPart"); local e=hrp:FindFirstChild("ElevenSpin"); if e then e:Destroy() end; local bav=Instance.new("BodyAngularVelocity"); bav.Name="ElevenSpin"; bav.MaxTorque=Vector3.new(0,math.huge,0); bav.P=100000; bav.AngularVelocity=Vector3.new(0,0,0); bav.Parent=hrp end
-lp.CharacterAdded:Connect(function(char) setupSpin(char) end); if lp.Character then setupSpin(lp.Character) end
-local function enableSpin() if Spin.Conn then Spin.Conn:Disconnect() end; Spin.Enabled=true; Spin.Conn=RunService.RenderStepped:Connect(function() local char=lp.Character; if not char then return end; local hum=char:FindFirstChildOfClass("Humanoid"); local hrp=char:FindFirstChild("HumanoidRootPart"); local bav=hrp and hrp:FindFirstChild("ElevenSpin"); if Spin.Enabled and bav then bav.AngularVelocity=Vector3.new(0,Spin.Speed,0); if hum then hum.AutoRotate=false end elseif bav then bav.AngularVelocity=Vector3.new(0,0,0); if hum then hum.AutoRotate=true end end end) end
-local function disableSpin() Spin.Enabled=false; if Spin.Conn then Spin.Conn:Disconnect(); Spin.Conn=nil end; local char=lp.Character; if char then local hrp=char:FindFirstChild("HumanoidRootPart"); local bav=hrp and hrp:FindFirstChild("ElevenSpin"); if bav then bav.AngularVelocity=Vector3.new(0,0,0) end; local hum=char:FindFirstChildOfClass("Humanoid"); if hum then hum.AutoRotate=true end end end
-
--------------------------------------------------------------------------
 -- LOAD CONFIG
 -------------------------------------------------------------------------
 autoLoad()
@@ -1015,20 +920,12 @@ AddToggle("Combat","Auto Grab",false,function(v) AUTO_GRAB_ENABLED=v end)
 AddToggle("Combat","Speed Customizer",false,function(v) if v then enableSpeedCustomizer() else disableSpeedCustomizer() end end)
 AddToggle("Combat","Inf Jump",false,function(v) if v then enableInfJump() else disableInfJump() end end)
 AddToggle("Combat","Spin",false,function(v) if v then enableSpin() else disableSpin() end end)
+AddToggle("Combat","Float",false,function(v) if v then enableFloat() else disableFloat() end end)
 AddToggle("Combat","Auto Walk",false,function(v)
     autoWalkEnabled=v; aw_gui.Enabled=v
     if not v then aw_stopAll(); aw_t1=false; aw_t2=false; aw_autoOn=false; aw_setToggle(false,aw_sw1,aw_k1); aw_setToggle(false,aw_sw2,aw_k2); aw_setToggle(false,aw_sw3,aw_k3) end
 end)
 AddToggle("Combat","Auto Medusa",false,function(v) end)
-
--- FAST FLOAT TOGGLE (ADD THIS LINE)
-AddToggle("Combat","Fast Float",false,function(v)
-    if v then 
-        enableFastFloat()
-    else 
-        disableFastFloat()
-    end
-end)
 
 AddToggle("Protect","Optimizer",false,function(v)
     if v then Workspace.Terrain.WaterWaveSize=0; game:GetService("Lighting").GlobalShadows=false
@@ -1059,7 +956,6 @@ AddToggle("Protect","Anti Turret",false,function(v)
 end)
 
 AddToggle("Protect","Lock Target",false,function(v) if v then enableSafeFollow() else disableSafeFollow() end end)
-
 AddToggle("Visual","Xray Base",false,function(v) if v then enableXrayBase() else disableXrayBase() end end)
 AddToggle("Visual","No Anim",false,function(v) if v then enableNoAnim() else disableNoAnim() end end)
 AddToggle("Visual","Player ESP",false,function(v) if v then enableESP() else disableESP() end end)
@@ -1085,7 +981,6 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- GRAB BAR
 local GrabBarFrame=Instance.new("Frame"); GrabBarFrame.Size=UDim2.new(0,220,0,8); GrabBarFrame.Position=UDim2.new(0.5,-110,0,34); GrabBarFrame.BackgroundColor3=Color3.fromRGB(25,25,30); GrabBarFrame.BackgroundTransparency=0.2; GrabBarFrame.BorderSizePixel=0; GrabBarFrame.Parent=HudGui
 Instance.new("UICorner",GrabBarFrame).CornerRadius=UDim.new(1,0)
 local hs2=Instance.new("UIStroke",GrabBarFrame); hs2.Color=Color3.fromRGB(255,255,255); hs2.Thickness=1; hs2.Transparency=0.7
@@ -1121,7 +1016,8 @@ do
         TweenService:Create(LockTglBg2,TweenInfo.new(0.2),{BackgroundColor3=locked and COLORS.Border or Color3.fromRGB(40,45,55)}):Play()
         TweenService:Create(LockCircle2,TweenInfo.new(0.2),{Position=locked and UDim2.new(0.55,0,0.1,0) or UDim2.new(0.1,0,0.1,0)}):Play()
         if SafeFollow.btn then SafeFollow.btn.Active=not locked end
-        if FastFloat.btn then FastFloat.btn.Active=not locked end  -- Add this line for Fast Float
+        if Float.btn then Float.btn.Active=not locked end
+        if Spin.btn then Spin.btn.Active=not locked end
         if SpeedCustomizer.SpeedUI and SpeedCustomizer.SpeedUI.MainFrame then SpeedCustomizer.SpeedUI.MainFrame.Draggable=not locked end
         autoSave()
     end
@@ -1139,7 +1035,6 @@ do
         MainFrame.Position=UDim2.new(0,200,0,150)
         ToggleIcon.Position=UDim2.new(0,50,0,300)
         aw_panel.Position=UDim2.new(0,800,0,400)
-        if FastFloat.btn then FastFloat.btn.Position=UDim2.new(0.5,-70,0.7,0) end  -- Reset Fast Float button position
         ResetBtn.BackgroundColor3=Color3.fromRGB(50,200,50); ResetBtn.Text="DONE!"
         task.delay(1,function() ResetBtn.BackgroundColor3=Color3.fromRGB(200,50,50); ResetBtn.Text="RESET" end)
         autoSave()
