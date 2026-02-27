@@ -438,7 +438,7 @@ local function findTurret()
 end
 
 -------------------------------------------------------------------------
--- ANTI-RAGDOLL
+-- ANTI-RAGDOLL V1 (Original)
 -------------------------------------------------------------------------
 local antiRagdollMode=nil; local ragdollConnections={}; local cachedCharData={}
 local function cacheCharacterData()
@@ -478,6 +478,84 @@ local function EnableAntiRagdoll()
     task.spawn(v1HeartbeatLoop)
 end
 local function DisableAntiRagdoll() antiRagdollMode=nil; disconnectAllRagdoll(); cachedCharData={} end
+
+-------------------------------------------------------------------------
+-- RAGDOLL V2 (Second Anti-Ragdoll)
+-------------------------------------------------------------------------
+local RagdollV2 = {Enabled=false, Connection=nil, HeartbeatConn=nil, CheckInterval=0.1}
+
+local function checkAndFixRagdollV2()
+    local char = lp.Character
+    if not char then return end
+    
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    
+    if not hum or not hrp then return end
+    
+    -- Check if ragdolled by humanoid state
+    local state = hum:GetState()
+    if state == Enum.HumanoidStateType.Physics or 
+       state == Enum.HumanoidStateType.Ragdoll or 
+       state == Enum.HumanoidStateType.FallingDown then
+        
+        -- Force exit ragdoll
+        pcall(function()
+            hum:ChangeState(Enum.HumanoidStateType.Running)
+            hrp.Anchored = false
+        end)
+    end
+    
+    -- Check for ragdoll constraints/attachments and remove them
+    for _, descendant in ipairs(char:GetDescendants()) do
+        if descendant:IsA("BallSocketConstraint") or 
+           (descendant:IsA("Attachment") and descendant.Name:lower():find("ragdoll")) then
+            pcall(function() descendant:Destroy() end)
+        end
+    end
+    
+    -- Reset velocity to prevent sliding
+    if hrp.AssemblyLinearVelocity.Magnitude > 50 then
+        hrp.AssemblyLinearVelocity = Vector3.new(0, hrp.AssemblyLinearVelocity.Y * 0.5, 0)
+    end
+end
+
+local function startRagdollV2()
+    if RagdollV2.HeartbeatConn then RagdollV2.HeartbeatConn:Disconnect() end
+    
+    RagdollV2.HeartbeatConn = RunService.Heartbeat:Connect(function()
+        if RagdollV2.Enabled then
+            checkAndFixRagdollV2()
+        end
+    end)
+end
+
+local function EnableRagdollV2()
+    if RagdollV2.Enabled then return end
+    RagdollV2.Enabled = true
+    startRagdollV2()
+    
+    -- Connect to character added
+    if RagdollV2.Connection then RagdollV2.Connection:Disconnect() end
+    RagdollV2.Connection = lp.CharacterAdded:Connect(function()
+        task.wait(0.5)
+        if RagdollV2.Enabled then
+            checkAndFixRagdollV2()
+        end
+    end)
+end
+
+local function DisableRagdollV2()
+    RagdollV2.Enabled = false
+    if RagdollV2.HeartbeatConn then
+        RagdollV2.HeartbeatConn:Disconnect()
+        RagdollV2.HeartbeatConn = nil
+    end
+    if RagdollV2.Connection then
+        RagdollV2.Connection:Disconnect()
+        RagdollV2.Connection = nil
+    end
+end
 
 -------------------------------------------------------------------------
 -- AUTO WALK — Triangle fixed via Heartbeat
@@ -930,6 +1008,10 @@ end)
 
 -- 🎯 Lock In (renamed from Lock Target)
 AddToggle("Protect","🎯 Lock In",false,function(v) if v then enableSafeFollow() else disableSafeFollow() end end)
+
+-- RAGDOLL V2 - SECOND ANTI-RAGDOLL (in Combat tab, below the first Anti-Ragdoll)
+AddToggle("Combat","Ragdoll",false,function(v) if v then EnableRagdollV2() else DisableRagdollV2() end end)
+
 AddToggle("Visual","Xray Base",false,function(v) if v then enableXrayBase() else disableXrayBase() end end)
 AddToggle("Visual","No Anim",false,function(v) if v then enableNoAnim() else disableNoAnim() end end)
 AddToggle("Visual","Player ESP",false,function(v) if v then enableESP() else disableESP() end end)
@@ -1053,3 +1135,4 @@ print("✓ 🎯 Lock In — Dark Blue + 🔒 emoji")
 print("✓ 🌀 Spin GUI — Dark Blue floating button")
 print("✓ ▲ Triangle FIXED — Heartbeat pulse")
 print("✓ ⚡ Speed Customizer — Triangle added")
+print("✓ Added second Anti-Ragdoll (Ragdoll) in Combat tab")
