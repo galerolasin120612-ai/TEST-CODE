@@ -178,22 +178,23 @@ TabButtons["Combat"].TextColor3 = COLORS.TextActive
 Pages["Combat"].Visible = true
 
 -------------------------------------------------------------------------
--- DRAG FUNCTION (para sa lahat ng GUI)
+-- DRAG FUNCTION (FIXED VERSION)
 -------------------------------------------------------------------------
-local function makeDraggable(frame, dragHandle)
-    local dragging = false
-    local dragStart, startPos
-    local handle = dragHandle or frame
+local function makeDraggable(guiFrame, dragHandle)
+    local isDragging = false
+    local dragStartPos
+    local guiStartPos
     
-    handle.InputBegan:Connect(function(input)
+    dragHandle.InputBegan:Connect(function(input)
         if UILocked then return end
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = input.Position
-            startPos = frame.Position
+            isDragging = true
+            dragStartPos = input.Position
+            guiStartPos = guiFrame.Position
+            
             input.Changed:Connect(function()
                 if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
+                    isDragging = false
                     autoSave()
                 end
             end)
@@ -201,11 +202,15 @@ local function makeDraggable(frame, dragHandle)
     end)
     
     UserInputService.InputChanged:Connect(function(input)
-        if UILocked then dragging = false; return end
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local delta = input.Position - dragStart
-            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, 
-                                        startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        if UILocked then isDragging = false; return end
+        if isDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - dragStartPos
+            guiFrame.Position = UDim2.new(
+                guiStartPos.X.Scale, 
+                guiStartPos.X.Offset + delta.X,
+                guiStartPos.Y.Scale, 
+                guiStartPos.Y.Offset + delta.Y
+            )
         end
     end)
 end
@@ -289,7 +294,7 @@ local function createGuiTab(name, size, defaultVisible)
         frame.Visible = false
     end)
     
-    -- Make draggable using title bar
+    -- Make draggable using title bar (FIXED)
     makeDraggable(frame, titleBar)
     
     -- Save sa table
@@ -1432,8 +1437,8 @@ end
 drag(MainFrame); drag(ToggleIcon)
 ToggleIcon.MouseButton1Click:Connect(function() MainFrame.Visible=not MainFrame.Visible end)
 
-print("🚀 Ivo Duels Script Loaded!")
+print("🚀 Ivo Duels Script Loaded - FULLY DRAGGABLE!")
 print("✓ Menu Icon: ☰ (Hamburger)")
 print("✓ Speed Customizer: Jump = 50, Down Speed = 100")
 print("✓ May ▲ button sa GUI para itago")
-print("✓ Draggable na lahat ng GUI!")
+print("✓ Draggable na lahat - i-drag sa BLUE TITLE BAR!")
