@@ -25,6 +25,7 @@ local COLORS = {
 
 local DARK_BLUE = Color3.fromRGB(12, 28, 95)
 local DARK_BLUE2 = Color3.fromRGB(10, 22, 80)
+local SIDE_BAR_COLOR = Color3.fromRGB(0, 40, 80) -- Dark blue for sidebar
 
 local CONFIG_FILE = "IvoDuels_config.txt"
 local ToggleStates = {}
@@ -102,13 +103,18 @@ local function addBtnDrag(btn)
     end)
 end
 
--- ToggleIcon = Hamburger Menu ☰
+-- ToggleIcon = Hamburger Menu ☰ (PINALAKI)
 ToggleIcon = create("TextButton", {
-    Size = UDim2.new(0, 48, 0, 48), Position = UDim2.new(0.05, 0, 0.2, 0),
-    BackgroundColor3 = Color3.fromRGB(15, 20, 30), Text = "☰", TextColor3 = Color3.fromRGB(255, 255, 255),
-    Font = "GothamBold", TextSize = 24, Parent = ScreenGui
+    Size = UDim2.new(0, 60, 0, 60), -- PINALAKI from 48 to 60
+    Position = UDim2.new(0.05, 0, 0.2, 0),
+    BackgroundColor3 = Color3.fromRGB(15, 20, 30), 
+    Text = "☰", 
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    Font = "GothamBold", 
+    TextSize = 32, -- PINALAKI from 24 to 32
+    Parent = ScreenGui
 })
-create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = ToggleIcon})
+create("UICorner", {CornerRadius = UDim.new(0, 12), Parent = ToggleIcon}) -- PINALAKI corner radius
 create("UIStroke", {Color = Color3.fromRGB(80, 120, 255), Thickness = 2, Parent = ToggleIcon})
 ToggleIcon.MouseEnter:Connect(function()
     TweenService:Create(ToggleIcon, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(30, 40, 70)}):Play()
@@ -117,30 +123,55 @@ ToggleIcon.MouseLeave:Connect(function()
     TweenService:Create(ToggleIcon, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(15, 20, 30)}):Play()
 end)
 
+-- Main Frame (PINALAKI)
 MainFrame = create("Frame", {
-    Size = UDim2.new(0, 340, 0, 380), Position = UDim2.new(0.5, -170, 0.5, -190),
-    BackgroundColor3 = COLORS.MainBG, BackgroundTransparency = 0.2, Visible = false, Parent = ScreenGui
+    Size = UDim2.new(0, 380, 0, 420), -- PINALAKI from 340,380 to 380,420
+    Position = UDim2.new(0.5, -190, 0.5, -210), -- Adjusted position
+    BackgroundColor3 = COLORS.MainBG, 
+    BackgroundTransparency = 0.2, 
+    Visible = false, 
+    Parent = ScreenGui
 })
 create("UICorner", {CornerRadius = UDim.new(0, 12), Parent = MainFrame})
 create("UIStroke", {Color = COLORS.Border, Thickness = 2, Parent = MainFrame})
 
-local Header = create("Frame", {Size = UDim2.new(1, 0, 0, 45), BackgroundTransparency = 1, Parent = MainFrame})
+-- Add dark blue sidebar sa gilid
+local SideBar = create("Frame", {
+    Size = UDim2.new(0, 6, 1, 0),
+    Position = UDim2.new(0, 0, 0, 0),
+    BackgroundColor3 = SIDE_BAR_COLOR,
+    BorderSizePixel = 0,
+    Parent = MainFrame
+})
+create("UICorner", {CornerRadius = UDim.new(0, 3), Parent = SideBar})
+
+local Header = create("Frame", {Size = UDim2.new(1, 0, 0, 50), BackgroundTransparency = 1, Parent = MainFrame}) -- PINALAKI height
 create("TextLabel", {
-    Text = "Ivo Duels", TextColor3 = COLORS.Border, Font = "GothamBold", TextSize = 18,
-    Size = UDim2.new(0.5, 0, 1, 0), Position = UDim2.new(0.05, 0, 0, 0),
-    BackgroundTransparency = 1, TextXAlignment = "Left", Parent = Header
+    Text = "Ivo Duels", 
+    TextColor3 = COLORS.Border, 
+    Font = "GothamBold", 
+    TextSize = 20, -- PINALAKI from 18 to 20
+    Size = UDim2.new(0.5, 0, 1, 0), 
+    Position = UDim2.new(0.05, 0, 0, 0),
+    BackgroundTransparency = 1, 
+    TextXAlignment = "Left", 
+    Parent = Header
 })
 
 local TabContainer = create("Frame", {
-    Size = UDim2.new(0.92, 0, 0, 30), Position = UDim2.new(0.04, 0, 0.13, 0),
-    BackgroundColor3 = COLORS.TabBG, Parent = MainFrame
+    Size = UDim2.new(0.92, 0, 0, 35), -- PINALAKI height
+    Position = UDim2.new(0.04, 0, 0.12, 0),
+    BackgroundColor3 = COLORS.TabBG, 
+    Parent = MainFrame
 })
 create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = TabContainer})
 create("UIListLayout", {FillDirection = "Horizontal", HorizontalAlignment = "Center", Parent = TabContainer})
 
 local PageContainer = create("Frame", {
-    Size = UDim2.new(1, 0, 0.75, 0), Position = UDim2.new(0, 0, 0.22, 0),
-    BackgroundTransparency = 1, Parent = MainFrame
+    Size = UDim2.new(1, 0, 0.77, 0), -- Adjusted for larger frame
+    Position = UDim2.new(0, 0, 0.2, 0),
+    BackgroundTransparency = 1, 
+    Parent = MainFrame
 })
 
 local Pages = {}
@@ -148,14 +179,22 @@ local TabButtons = {}
 
 local function CreatePage(name)
     local Page = create("ScrollingFrame", {
-        Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, Visible = false,
-        ScrollBarThickness = 0, AutomaticCanvasSize = "Y", Parent = PageContainer
+        Size = UDim2.new(1, 0, 1, 0), 
+        BackgroundTransparency = 1, 
+        Visible = false,
+        ScrollBarThickness = 0, 
+        AutomaticCanvasSize = "Y", 
+        Parent = PageContainer
     })
     create("UIListLayout", {HorizontalAlignment = "Center", Padding = UDim.new(0, 8), Parent = Page})
     Pages[name] = Page
     local TabBtn = create("TextButton", {
-        Size = UDim2.new(0.25, 0, 1, 0), BackgroundTransparency = 1,
-        Text = name, TextColor3 = COLORS.TextInactive, Font = "GothamBold", TextSize = 10,
+        Size = UDim2.new(0.25, 0, 1, 0), 
+        BackgroundTransparency = 1,
+        Text = name, 
+        TextColor3 = COLORS.TextInactive, 
+        Font = "GothamBold", 
+        TextSize = 12, -- PINALAKI from 10 to 12
         Parent = TabContainer
     })
     TabBtn.MouseButton1Click:Connect(function()
@@ -168,13 +207,13 @@ end
 
 local function AddToggle(pageName, labelText, default, callback)
     local active = (ToggleStates[labelText] ~= nil) and ToggleStates[labelText] or default
-    local Row = create("Frame", {Size = UDim2.new(0.92, 0, 0, 50), BackgroundColor3 = COLORS.RowBG, BackgroundTransparency = 0.5, Parent = Pages[pageName]})
+    local Row = create("Frame", {Size = UDim2.new(0.92, 0, 0, 55), BackgroundColor3 = COLORS.RowBG, BackgroundTransparency = 0.5, Parent = Pages[pageName]}) -- PINALAKI height
     create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = Row})
     create("UIStroke", {Color = COLORS.Border, Thickness = 1, Transparency = 0.8, Parent = Row})
-    create("TextLabel", {Text = labelText, Size = UDim2.new(0.6, 0, 1, 0), Position = UDim2.new(0.05, 0, 0, 0), TextColor3 = Color3.new(1,1,1), Font = "GothamBold", TextSize = 13, BackgroundTransparency = 1, TextXAlignment = "Left", Parent = Row})
-    local TglBg = create("Frame", {Size = UDim2.new(0, 42, 0, 20), Position = UDim2.new(0.95, -42, 0.5, -10), BackgroundColor3 = active and COLORS.Border or Color3.fromRGB(40, 45, 55), Parent = Row})
+    create("TextLabel", {Text = labelText, Size = UDim2.new(0.6, 0, 1, 0), Position = UDim2.new(0.05, 0, 0, 0), TextColor3 = Color3.new(1,1,1), Font = "GothamBold", TextSize = 14, BackgroundTransparency = 1, TextXAlignment = "Left", Parent = Row}) -- PINALAKI text size
+    local TglBg = create("Frame", {Size = UDim2.new(0, 46, 0, 22), Position = UDim2.new(0.95, -46, 0.5, -11), BackgroundColor3 = active and COLORS.Border or Color3.fromRGB(40, 45, 55), Parent = Row}) -- PINALAKI toggle size
     create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = TglBg})
-    local Circle = create("Frame", {Size = UDim2.new(0, 16, 0, 16), Position = active and UDim2.new(0.55, 0, 0.1, 0) or UDim2.new(0.1, 0, 0.1, 0), BackgroundColor3 = Color3.new(1, 1, 1), Parent = TglBg})
+    local Circle = create("Frame", {Size = UDim2.new(0, 18, 0, 18), Position = active and UDim2.new(0.55, 0, 0.1, 0) or UDim2.new(0.1, 0, 0.1, 0), BackgroundColor3 = Color3.new(1, 1, 1), Parent = TglBg}) -- PINALAKI circle
     create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = Circle})
     local Btn = create("TextButton", {Size = UDim2.new(1,0,1,0), BackgroundTransparency = 1, Text = "", Parent = Row})
     Btn.MouseButton1Click:Connect(function()
@@ -195,12 +234,25 @@ Pages["Combat"].Visible = true
 -------------------------------------------------------------------------
 -- 🎯 LOCK IN (Safe Follow) — Dark Blue
 -------------------------------------------------------------------------
-local SafeFollow = {Enabled=false,Locked=false,FOLLOW_DISTANCE=6,lastMove=0,gui=nil,btn=nil,targetChar=nil,heartbeatConn=nil,charAddedConn=nil}
+local SafeFollow = {
+    Enabled = false,
+    Locked = false,
+    FOLLOW_DISTANCE = 6,
+    LOCK_SPEED = 54, -- Default lock speed
+    lastMove = 0,
+    gui = nil,
+    btn = nil,
+    targetChar = nil,
+    heartbeatConn = nil,
+    charAddedConn = nil
+}
 
 local function createSafeFollowUI()
     SafeFollow.gui = Instance.new("ScreenGui")
-    SafeFollow.gui.Name="SafeFollowUI"; SafeFollow.gui.ResetOnSpawn=false
-    SafeFollow.gui.Enabled=false; SafeFollow.gui.Parent=CoreGui
+    SafeFollow.gui.Name = "SafeFollowUI"
+    SafeFollow.gui.ResetOnSpawn = false
+    SafeFollow.gui.Enabled = false
+    SafeFollow.gui.Parent = CoreGui
 
     SafeFollow.btn = Instance.new("TextButton")
     SafeFollow.btn.Size = UDim2.new(0, 148, 0, 46)
@@ -214,7 +266,8 @@ local function createSafeFollowUI()
     SafeFollow.btn.Parent = SafeFollow.gui
     Instance.new("UICorner", SafeFollow.btn).CornerRadius = UDim.new(0, 10)
     local st = Instance.new("UIStroke", SafeFollow.btn)
-    st.Color = Color3.fromRGB(40, 80, 220); st.Thickness = 2
+    st.Color = Color3.fromRGB(40, 80, 220)
+    st.Thickness = 2
 
     addBtnDrag(SafeFollow.btn)
 
@@ -231,54 +284,118 @@ local function createSafeFollowUI()
 end
 
 local function getNearestPlayer(character, hrp)
-    local nearest,dist=nil,math.huge
-    for _,p in pairs(Players:GetPlayers()) do
-        if p~=lp and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-            local d=(p.Character.HumanoidRootPart.Position-hrp.Position).Magnitude
-            if d<dist then dist=d; nearest=p.Character end
+    local nearest, dist = nil, math.huge
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= lp and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            local d = (p.Character.HumanoidRootPart.Position - hrp.Position).Magnitude
+            if d < dist then
+                dist = d
+                nearest = p.Character
+            end
         end
     end
     return nearest
 end
 
 local function startSafeFollow()
-    if SafeFollow.heartbeatConn then SafeFollow.heartbeatConn:Disconnect() end
-    SafeFollow.heartbeatConn=RunService.Heartbeat:Connect(function()
-        if not SafeFollow.Enabled or not SafeFollow.Locked then return end
-        local character=lp.Character; if not character then return end
-        local hrp=character:FindFirstChild("HumanoidRootPart"); local hum=character:FindFirstChild("Humanoid")
-        if not hrp or not hum then return end
-        if not SafeFollow.targetChar or not SafeFollow.targetChar.Parent then SafeFollow.targetChar=getNearestPlayer(character,hrp); return end
-        local trgHRP=SafeFollow.targetChar:FindFirstChild("HumanoidRootPart"); local trgHum=SafeFollow.targetChar:FindFirstChild("Humanoid")
-        if not trgHRP or not trgHum or trgHum.Health<=0 then SafeFollow.targetChar=getNearestPlayer(character,hrp); return end
-        local trgPos=trgHRP.Position; local myPos=hrp.Position; local direction=trgPos-myPos
-        if direction.Magnitude>0 then
-            if tick()-SafeFollow.lastMove<0.15 then return end
-            SafeFollow.lastMove=tick()
-            hum:MoveTo(myPos+direction.Unit*math.min(direction.Magnitude,SafeFollow.FOLLOW_DISTANCE))
-            local yDiff=trgPos.Y-myPos.Y
-            if yDiff>1.5 then hrp.AssemblyLinearVelocity=Vector3.new(hrp.AssemblyLinearVelocity.X,math.clamp(yDiff*4,0,60),hrp.AssemblyLinearVelocity.Z) end
+    if SafeFollow.heartbeatConn then
+        SafeFollow.heartbeatConn:Disconnect()
+    end
+    SafeFollow.heartbeatConn = RunService.Heartbeat:Connect(function()
+        if not SafeFollow.Enabled or not SafeFollow.Locked then
+            return
+        end
+        local character = lp.Character
+        if not character then
+            return
+        end
+        local hrp = character:FindFirstChild("HumanoidRootPart")
+        local hum = character:FindFirstChild("Humanoid")
+        if not hrp or not hum then
+            return
+        end
+        if not SafeFollow.targetChar or not SafeFollow.targetChar.Parent then
+            SafeFollow.targetChar = getNearestPlayer(character, hrp)
+            return
+        end
+        local trgHRP = SafeFollow.targetChar:FindFirstChild("HumanoidRootPart")
+        local trgHum = SafeFollow.targetChar:FindFirstChild("Humanoid")
+        if not trgHRP or not trgHum or trgHum.Health <= 0 then
+            SafeFollow.targetChar = getNearestPlayer(character, hrp)
+            return
+        end
+        local trgPos = trgHRP.Position
+        local myPos = hrp.Position
+        local direction = trgPos - myPos
+        
+        if direction.Magnitude > 0 then
+            if tick() - SafeFollow.lastMove < 0.15 then
+                return
+            end
+            SafeFollow.lastMove = tick()
+            
+            -- Use LOCK_SPEED instead of fixed value
+            hum:MoveTo(myPos + direction.Unit * math.min(direction.Magnitude, SafeFollow.LOCK_SPEED))
+            
+            local yDiff = trgPos.Y - myPos.Y
+            if yDiff > 1.5 then
+                hrp.AssemblyLinearVelocity = Vector3.new(
+                    hrp.AssemblyLinearVelocity.X,
+                    math.clamp(yDiff * 4, 0, 60),
+                    hrp.AssemblyLinearVelocity.Z
+                )
+            end
         end
     end)
 end
 
 local function enableSafeFollow()
-    if SafeFollow.Enabled then return end; SafeFollow.Enabled=true
-    if not SafeFollow.gui then createSafeFollowUI() end; SafeFollow.gui.Enabled=true
-    SafeFollow.Locked=false
-    if SafeFollow.btn then SafeFollow.btn.Text="🔒 LOCK: OFF"; SafeFollow.btn.BackgroundColor3=DARK_BLUE end
+    if SafeFollow.Enabled then
+        return
+    end
+    SafeFollow.Enabled = true
+    if not SafeFollow.gui then
+        createSafeFollowUI()
+    end
+    SafeFollow.gui.Enabled = true
+    SafeFollow.Locked = false
+    if SafeFollow.btn then
+        SafeFollow.btn.Text = "🔒 LOCK: OFF"
+        SafeFollow.btn.BackgroundColor3 = DARK_BLUE
+    end
     startSafeFollow()
-    SafeFollow.charAddedConn=lp.CharacterAdded:Connect(function(c) local hum=c:WaitForChild("Humanoid",5); if hum then hum.AutoRotate=true end end)
-    if lp.Character and lp.Character:FindFirstChild("Humanoid") then lp.Character.Humanoid.AutoRotate=true end
+    SafeFollow.charAddedConn = lp.CharacterAdded:Connect(function(c)
+        local hum = c:WaitForChild("Humanoid", 5)
+        if hum then
+            hum.AutoRotate = true
+        end
+    end)
+    if lp.Character and lp.Character:FindFirstChild("Humanoid") then
+        lp.Character.Humanoid.AutoRotate = true
+    end
 end
 
 local function disableSafeFollow()
-    if not SafeFollow.Enabled then return end; SafeFollow.Enabled=false; SafeFollow.Locked=false
-    if SafeFollow.gui then SafeFollow.gui.Enabled=false end
-    if SafeFollow.heartbeatConn then SafeFollow.heartbeatConn:Disconnect(); SafeFollow.heartbeatConn=nil end
-    if SafeFollow.charAddedConn then SafeFollow.charAddedConn:Disconnect(); SafeFollow.charAddedConn=nil end
-    SafeFollow.targetChar=nil
-    if lp.Character and lp.Character:FindFirstChild("Humanoid") then lp.Character.Humanoid.AutoRotate=true end
+    if not SafeFollow.Enabled then
+        return
+    end
+    SafeFollow.Enabled = false
+    SafeFollow.Locked = false
+    if SafeFollow.gui then
+        SafeFollow.gui.Enabled = false
+    end
+    if SafeFollow.heartbeatConn then
+        SafeFollow.heartbeatConn:Disconnect()
+        SafeFollow.heartbeatConn = nil
+    end
+    if SafeFollow.charAddedConn then
+        SafeFollow.charAddedConn:Disconnect()
+        SafeFollow.charAddedConn = nil
+    end
+    SafeFollow.targetChar = nil
+    if lp.Character and lp.Character:FindFirstChild("Humanoid") then
+        lp.Character.Humanoid.AutoRotate = true
+    end
 end
 
 -------------------------------------------------------------------------
@@ -480,11 +597,16 @@ end
 local function DisableAntiRagdoll() antiRagdollMode=nil; disconnectAllRagdoll(); cachedCharData={} end
 
 -------------------------------------------------------------------------
--- RAGDOLL V2 (Second Anti-Ragdoll)
+-- TP RAGDOLL V2 (Second Anti-Ragdoll in Protect Tab)
 -------------------------------------------------------------------------
-local RagdollV2 = {Enabled=false, Connection=nil, HeartbeatConn=nil, CheckInterval=0.1}
+local TpRagdollV2 = {
+    Enabled = false,
+    Connection = nil,
+    HeartbeatConn = nil,
+    CheckInterval = 0.1
+}
 
-local function checkAndFixRagdollV2()
+local function checkAndFixTpRagdollV2()
     local char = lp.Character
     if not char then return end
     
@@ -520,40 +642,44 @@ local function checkAndFixRagdollV2()
     end
 end
 
-local function startRagdollV2()
-    if RagdollV2.HeartbeatConn then RagdollV2.HeartbeatConn:Disconnect() end
+local function startTpRagdollV2()
+    if TpRagdollV2.HeartbeatConn then
+        TpRagdollV2.HeartbeatConn:Disconnect()
+    end
     
-    RagdollV2.HeartbeatConn = RunService.Heartbeat:Connect(function()
-        if RagdollV2.Enabled then
-            checkAndFixRagdollV2()
+    TpRagdollV2.HeartbeatConn = RunService.Heartbeat:Connect(function()
+        if TpRagdollV2.Enabled then
+            checkAndFixTpRagdollV2()
         end
     end)
 end
 
-local function EnableRagdollV2()
-    if RagdollV2.Enabled then return end
-    RagdollV2.Enabled = true
-    startRagdollV2()
+local function EnableTpRagdollV2()
+    if TpRagdollV2.Enabled then return end
+    TpRagdollV2.Enabled = true
+    startTpRagdollV2()
     
     -- Connect to character added
-    if RagdollV2.Connection then RagdollV2.Connection:Disconnect() end
-    RagdollV2.Connection = lp.CharacterAdded:Connect(function()
+    if TpRagdollV2.Connection then
+        TpRagdollV2.Connection:Disconnect()
+    end
+    TpRagdollV2.Connection = lp.CharacterAdded:Connect(function()
         task.wait(0.5)
-        if RagdollV2.Enabled then
-            checkAndFixRagdollV2()
+        if TpRagdollV2.Enabled then
+            checkAndFixTpRagdollV2()
         end
     end)
 end
 
-local function DisableRagdollV2()
-    RagdollV2.Enabled = false
-    if RagdollV2.HeartbeatConn then
-        RagdollV2.HeartbeatConn:Disconnect()
-        RagdollV2.HeartbeatConn = nil
+local function DisableTpRagdollV2()
+    TpRagdollV2.Enabled = false
+    if TpRagdollV2.HeartbeatConn then
+        TpRagdollV2.HeartbeatConn:Disconnect()
+        TpRagdollV2.HeartbeatConn = nil
     end
-    if RagdollV2.Connection then
-        RagdollV2.Connection:Disconnect()
-        RagdollV2.Connection = nil
+    if TpRagdollV2.Connection then
+        TpRagdollV2.Connection:Disconnect()
+        TpRagdollV2.Connection = nil
     end
 end
 
@@ -984,6 +1110,9 @@ AddToggle("Protect","Optimizer",false,function(v)
 end)
 AddToggle("Protect","Anti-Ragdoll",false,function(v) if v then EnableAntiRagdoll() else DisableAntiRagdoll() end end)
 
+-- TP RAGDOLL V2 - SECOND ANTI-RAGDOLL (in Protect tab, below the first Anti-Ragdoll)
+AddToggle("Protect","TP Ragdoll",false,function(v) if v then EnableTpRagdollV2() else DisableTpRagdollV2() end end)
+
 local AntiEffects={Enabled=false,Watcher=nil,Keywords={"effect","vfx","fx","particle","camera","shake","blur","flash","visual","ui","item"}}
 AddToggle("Protect","Anti Bee & Disco",false,function(v)
     AntiEffects.Enabled=v
@@ -1009,26 +1138,71 @@ end)
 -- 🎯 Lock In (renamed from Lock Target)
 AddToggle("Protect","🎯 Lock In",false,function(v) if v then enableSafeFollow() else disableSafeFollow() end end)
 
--- RAGDOLL V2 - SECOND ANTI-RAGDOLL (in Combat tab, below the first Anti-Ragdoll)
-AddToggle("Combat","Ragdoll",false,function(v) if v then EnableRagdollV2() else DisableRagdollV2() end end)
-
 AddToggle("Visual","Xray Base",false,function(v) if v then enableXrayBase() else disableXrayBase() end end)
 AddToggle("Visual","No Anim",false,function(v) if v then enableNoAnim() else disableNoAnim() end end)
 AddToggle("Visual","Player ESP",false,function(v) if v then enableESP() else disableESP() end end)
 
 -------------------------------------------------------------------------
+-- SETTINGS TAB - Lock Speed Configuration
+-------------------------------------------------------------------------
+do
+    -- Lock Speed Configuration Row
+    local LockSpeedRow = create("Frame", {Size = UDim2.new(0.92, 0, 0, 50), BackgroundColor3 = COLORS.RowBG, BackgroundTransparency = 0.5, Parent = Pages["Settings"]})
+    create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = LockSpeedRow})
+    create("UIStroke", {Color = COLORS.Border, Thickness = 1, Transparency = 0.8, Parent = LockSpeedRow})
+    
+    create("TextLabel", {
+        Text = "Lock Speed", 
+        Size = UDim2.new(0.4, 0, 1, 0), 
+        Position = UDim2.new(0.05, 0, 0, 0), 
+        TextColor3 = Color3.new(1,1,1), 
+        Font = "GothamBold", 
+        TextSize = 13, 
+        BackgroundTransparency = 1, 
+        TextXAlignment = "Left", 
+        Parent = LockSpeedRow
+    })
+    
+    local SpeedBox = create("TextBox", {
+        Size = UDim2.new(0, 70, 0, 30),
+        Position = UDim2.new(0.7, 0, 0.5, -15),
+        BackgroundColor3 = Color3.fromRGB(20, 25, 35),
+        Text = tostring(SafeFollow.LOCK_SPEED),
+        TextColor3 = Color3.fromRGB(100, 190, 255),
+        Font = "GothamBold",
+        TextSize = 14,
+        ClearTextOnFocus = false,
+        Parent = LockSpeedRow
+    })
+    create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = SpeedBox})
+    create("UIStroke", {Color = Color3.fromRGB(50, 100, 200), Thickness = 1, Parent = SpeedBox})
+    
+    SpeedBox.FocusLost:Connect(function()
+        local num = tonumber(SpeedBox.Text)
+        if num then
+            num = math.clamp(num, 1, 200)
+            SafeFollow.LOCK_SPEED = num
+            SpeedBox.Text = tostring(num)
+        else
+            SpeedBox.Text = tostring(SafeFollow.LOCK_SPEED)
+        end
+        autoSave()
+    end)
+end
+
+-------------------------------------------------------------------------
 -- TOP HUD
 -------------------------------------------------------------------------
 local HudGui=Instance.new("ScreenGui"); HudGui.Name="IvoDuels_HUD"; HudGui.ResetOnSpawn=false; HudGui.DisplayOrder=999; HudGui.Parent=CoreGui
-local HudFrame=Instance.new("Frame"); HudFrame.Size=UDim2.new(0,220,0,24); HudFrame.Position=UDim2.new(0.5,-110,0,6); HudFrame.BackgroundColor3=Color3.fromRGB(11,14,20); HudFrame.BackgroundTransparency=0.2; HudFrame.BorderSizePixel=0; HudFrame.Parent=HudGui
+local HudFrame=Instance.new("Frame"); HudFrame.Size=UDim2.new(0,240,0,26); HudFrame.Position=UDim2.new(0.5,-120,0,6); HudFrame.BackgroundColor3=Color3.fromRGB(11,14,20); HudFrame.BackgroundTransparency=0.2; HudFrame.BorderSizePixel=0; HudFrame.Parent=HudGui
 Instance.new("UICorner",HudFrame).CornerRadius=UDim.new(0,6); local hs=Instance.new("UIStroke",HudFrame); hs.Color=Color3.fromRGB(255,255,255); hs.Thickness=1
-local HudName=Instance.new("TextLabel"); HudName.Size=UDim2.new(0.4,0,1,0); HudName.Position=UDim2.new(0,8,0,0); HudName.BackgroundTransparency=1; HudName.Text="🗡 Ivo Duels"; HudName.TextColor3=Color3.fromRGB(255,255,255); HudName.Font=Enum.Font.GothamBold; HudName.TextSize=11; HudName.TextXAlignment=Enum.TextXAlignment.Left; HudName.Parent=HudFrame
+local HudName=Instance.new("TextLabel"); HudName.Size=UDim2.new(0.4,0,1,0); HudName.Position=UDim2.new(0,8,0,0); HudName.BackgroundTransparency=1; HudName.Text="🗡 Ivo Duels"; HudName.TextColor3=Color3.fromRGB(255,255,255); HudName.Font=Enum.Font.GothamBold; HudName.TextSize=12; HudName.TextXAlignment=Enum.TextXAlignment.Left; HudName.Parent=HudFrame
 local function makeDivider(x) local d=Instance.new("Frame"); d.Size=UDim2.new(0,1,0.6,0); d.Position=UDim2.new(x,0,0.2,0); d.BackgroundColor3=Color3.fromRGB(255,255,255); d.BackgroundTransparency=0.6; d.BorderSizePixel=0; d.Parent=HudFrame end
 makeDivider(0.4); makeDivider(0.69)
-local HudFPS=Instance.new("TextLabel"); HudFPS.Size=UDim2.new(0.28,0,1,0); HudFPS.Position=UDim2.new(0.41,0,0,0); HudFPS.BackgroundTransparency=1; HudFPS.Text="FPS: --"; HudFPS.TextColor3=Color3.fromRGB(120,255,160); HudFPS.Font=Enum.Font.GothamBold; HudFPS.TextSize=11; HudFPS.TextXAlignment=Enum.TextXAlignment.Center; HudFPS.Parent=HudFrame
-local HudPing=Instance.new("TextLabel"); HudPing.Size=UDim2.new(0.3,-8,1,0); HudPing.Position=UDim2.new(0.7,0,0,0); HudPing.BackgroundTransparency=1; HudPing.Text="Ping: --"; HudPing.TextColor3=Color3.fromRGB(120,200,255); HudPing.Font=Enum.Font.GothamBold; HudPing.TextSize=11; HudPing.TextXAlignment=Enum.TextXAlignment.Center; HudPing.Parent=HudFrame
+local HudFPS=Instance.new("TextLabel"); HudFPS.Size=UDim2.new(0.28,0,1,0); HudFPS.Position=UDim2.new(0.41,0,0,0); HudFPS.BackgroundTransparency=1; HudFPS.Text="FPS: --"; HudFPS.TextColor3=Color3.fromRGB(120,255,160); HudFPS.Font=Enum.Font.GothamBold; HudFPS.TextSize=12; HudFPS.TextXAlignment=Enum.TextXAlignment.Center; HudFPS.Parent=HudFrame
+local HudPing=Instance.new("TextLabel"); HudPing.Size=UDim2.new(0.3,-8,1,0); HudPing.Position=UDim2.new(0.7,0,0,0); HudPing.BackgroundTransparency=1; HudPing.Text="Ping: --"; HudPing.TextColor3=Color3.fromRGB(120,200,255); HudPing.Font=Enum.Font.GothamBold; HudPing.TextSize=12; HudPing.TextXAlignment=Enum.TextXAlignment.Center; HudPing.Parent=HudFrame
 
-local GrabBarFrame=Instance.new("Frame"); GrabBarFrame.Size=UDim2.new(0,220,0,8); GrabBarFrame.Position=UDim2.new(0.5,-110,0,34); GrabBarFrame.BackgroundColor3=Color3.fromRGB(25,25,30); GrabBarFrame.BackgroundTransparency=0.2; GrabBarFrame.BorderSizePixel=0; GrabBarFrame.Parent=HudGui
+local GrabBarFrame=Instance.new("Frame"); GrabBarFrame.Size=UDim2.new(0,240,0,8); GrabBarFrame.Position=UDim2.new(0.5,-120,0,36); GrabBarFrame.BackgroundColor3=Color3.fromRGB(25,25,30); GrabBarFrame.BackgroundTransparency=0.2; GrabBarFrame.BorderSizePixel=0; GrabBarFrame.Parent=HudGui
 Instance.new("UICorner",GrabBarFrame).CornerRadius=UDim.new(1,0)
 local hs2=Instance.new("UIStroke",GrabBarFrame); hs2.Color=Color3.fromRGB(255,255,255); hs2.Thickness=1; hs2.Transparency=0.7
 local GrabBarFill=Instance.new("Frame"); GrabBarFill.Size=UDim2.new(0,0,1,0); GrabBarFill.BackgroundColor3=Color3.fromRGB(138,43,226); GrabBarFill.BorderSizePixel=0; GrabBarFill.Parent=GrabBarFrame
@@ -1061,7 +1235,7 @@ RunService.Heartbeat:Connect(function()
 end)
 
 -------------------------------------------------------------------------
--- SETTINGS TAB
+-- SETTINGS TAB (Continued)
 -------------------------------------------------------------------------
 local LockTglBg2,LockCircle2
 do
@@ -1130,9 +1304,12 @@ drag(MainFrame); drag(ToggleIcon)
 ToggleIcon.MouseButton1Click:Connect(function() MainFrame.Visible=not MainFrame.Visible end)
 
 print("✓ Ivo Duels Loaded!")
-print("✓ ☰ Hamburger Menu Icon")
+print("✓ ☰ Hamburger Menu Icon - Pinalaki (60x60)")
+print("✓ Main Frame - Pinalaki (380x420)")
+print("✓ Dark Blue Sidebar - Idinagdag")
+print("✓ TP Ragdoll - Inilipat sa Protect tab")
+print("✓ Lock Speed Config - Idinagdag sa Settings tab (Default: 54)")
 print("✓ 🎯 Lock In — Dark Blue + 🔒 emoji")
 print("✓ 🌀 Spin GUI — Dark Blue floating button")
 print("✓ ▲ Triangle FIXED — Heartbeat pulse")
 print("✓ ⚡ Speed Customizer — Triangle added")
-print("✓ Added second Anti-Ragdoll (Ragdoll) in Combat tab")
