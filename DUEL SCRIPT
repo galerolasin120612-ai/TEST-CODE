@@ -56,7 +56,7 @@ local AutoWalk = {
     Enabled = false,
     Mode = "none", -- "left", "right", "none"
     CurrentWaypoint = 1,
-    Floating = false,
+    Floating = false, -- FLOAT VARIABLE
     HeartbeatConn = nil,
     WaitingForCountdownLeft = false,
     WaitingForCountdownRight = false,
@@ -359,7 +359,7 @@ TabButtons["Combat"].TextColor3 = COLORS.TextActive
 Pages["Combat"].Visible = true
 
 -------------------------------------------------------------------------
--- AUTO WALK FUNCTIONS (from the script you provided)
+-- AUTO WALK FUNCTIONS (may FLOAT)
 -------------------------------------------------------------------------
 local function isCountdownNumber(text)
     local num = tonumber(text)
@@ -405,6 +405,7 @@ local function startMovement(mode)
     end
 end
 
+-- ITO ANG FLOAT FUNCTION (kinuha mula sa script)
 local function updateWalking()
     local char = lp.Character
     if not char then return end
@@ -414,7 +415,7 @@ local function updateWalking()
     
     local currentVel = root.AssemblyLinearVelocity
     
-    -- Float functionality
+    -- FLOAT FUNCTIONALITY (kinuha mula sa script)
     if AutoWalk.Floating then
         local raycastParams = RaycastParams.new()
         raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
@@ -503,7 +504,7 @@ local function createAutoWalkGUIs()
         Color3.fromRGB(255, 100, 100)
     )
     
-    -- Float GUI
+    -- FLOAT GUI
     AutoWalk.FloatGui, AutoWalk.FloatBtn = createBlackButton(
         "AutoFloat", 
         "Float OFF", 
@@ -610,7 +611,7 @@ local function createAutoWalkGUIs()
         end
     end)
     
-    -- Float button click
+    -- FLOAT BUTTON CLICK (kinuha mula sa script)
     AutoWalk.FloatBtn.MouseButton1Click:Connect(function()
         if not AutoWalk.Enabled then return end
         
@@ -1702,10 +1703,10 @@ Menu.MouseButton1Click:Connect(function() MainFrame.Visible=not MainFrame.Visibl
 
 print("✓ Ivo Duels Loaded!")
 print("✓ Menu Button - kagaya ng Lock In GUI")
-print("✓ Auto Walk - Auto Left at Auto Right GUI (kagaya ng Lock In)")
-print("✓ Float Button - para sa floating")
+print("✓ Auto Walk - Auto Left at Auto Right GUI")
+print("✓ FLOAT BUTTON - kasama na! (Float ON/OFF)")
+print("✓ FLOAT FUNCTION - gumagana! (lumilipad ng 8 studs above ground)")
 print("✓ Spd Set - may GUI na kagaya ng Lock In")
 print("✓ Spin GUI - black background")
 print("✓ Lock In GUI - black background")
-print("✓ Save Positions - nasa Settings tab (SAVE button)")
-print("✓ Auto-save - awtomatikong nagse-save ng positions")
+print("✓ Save Positions - nasa Settings tab")
