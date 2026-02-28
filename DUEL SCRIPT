@@ -51,12 +51,18 @@ local leftWaypoints = {
     Vector3.new(-474.22, -6.96, 16.18),
 }
 
+-- TP Ragdoll Waypoints
+local tpFinalPos1 = Vector3.new(-483.59, -5.04, 104.24)
+local tpFinalPos2 = Vector3.new(-483.51, -5.10, 18.89)
+local tpCheckpointA = Vector3.new(-472.60, -7.00, 57.52)
+local tpCheckpointB1 = Vector3.new(-472.65, -7.00, 95.69)
+local tpCheckpointB2 = Vector3.new(-471.76, -7.00, 26.22)
+
 -- Auto Walk Variables
 local AutoWalk = {
     Enabled = false,
     Mode = "none", -- "left", "right", "none"
     CurrentWaypoint = 1,
-    Floating = false, -- FLOAT VARIABLE
     HeartbeatConn = nil,
     WaitingForCountdownLeft = false,
     WaitingForCountdownRight = false,
@@ -65,10 +71,16 @@ local AutoWalk = {
     -- GUI elements
     LeftGui = nil,
     RightGui = nil,
-    FloatGui = nil,
     LeftBtn = nil,
-    RightBtn = nil,
-    FloatBtn = nil
+    RightBtn = nil
+}
+
+-- TP Ragdoll Variables
+local TpRagdoll = {
+    Enabled = false,
+    Gui = nil,
+    Tp1Btn = nil,
+    Tp2Btn = nil
 }
 
 local function autoSave()
@@ -89,10 +101,17 @@ local function autoSave()
         lines[#lines+1] = "AutoRight_X="..math.floor(ap.X)
         lines[#lines+1] = "AutoRight_Y="..math.floor(ap.Y)
     end
-    if AutoWalk.FloatGui and AutoWalk.FloatBtn then
-        local ap = AutoWalk.FloatBtn.AbsolutePosition
-        lines[#lines+1] = "AutoFloat_X="..math.floor(ap.X)
-        lines[#lines+1] = "AutoFloat_Y="..math.floor(ap.Y)
+    
+    -- Save TP Ragdoll positions
+    if TpRagdoll.Gui and TpRagdoll.Tp1Btn then
+        local ap = TpRagdoll.Tp1Btn.AbsolutePosition
+        lines[#lines+1] = "Tp1_X="..math.floor(ap.X)
+        lines[#lines+1] = "Tp1_Y="..math.floor(ap.Y)
+    end
+    if TpRagdoll.Gui and TpRagdoll.Tp2Btn then
+        local ap = TpRagdoll.Tp2Btn.AbsolutePosition
+        lines[#lines+1] = "Tp2_X="..math.floor(ap.X)
+        lines[#lines+1] = "Tp2_Y="..math.floor(ap.Y)
     end
     
     -- Save Lock In position
@@ -144,8 +163,10 @@ local function autoLoad()
             elseif key == "AutoLeft_Y" then savedPositions.AutoLeftY = tonumber(val)
             elseif key == "AutoRight_X" then savedPositions.AutoRightX = tonumber(val)
             elseif key == "AutoRight_Y" then savedPositions.AutoRightY = tonumber(val)
-            elseif key == "AutoFloat_X" then savedPositions.AutoFloatX = tonumber(val)
-            elseif key == "AutoFloat_Y" then savedPositions.AutoFloatY = tonumber(val)
+            elseif key == "Tp1_X" then savedPositions.Tp1X = tonumber(val)
+            elseif key == "Tp1_Y" then savedPositions.Tp1Y = tonumber(val)
+            elseif key == "Tp2_X" then savedPositions.Tp2X = tonumber(val)
+            elseif key == "Tp2_Y" then savedPositions.Tp2Y = tonumber(val)
             elseif key == "LockIn_X" then savedPositions.LockInX = tonumber(val)
             elseif key == "LockIn_Y" then savedPositions.LockInY = tonumber(val)
             elseif key == "Spin_X" then savedPositions.SpinX = tonumber(val)
@@ -223,6 +244,133 @@ local function createBlackButton(name, text, position, activeColor)
     addBtnDrag(btn)
     
     return gui, btn
+end
+
+-- Function to create TP Ragdoll GUI (dalawang button sa isang frame)
+local function createTpRagdollGUI()
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "TpRagdollGUI"
+    gui.ResetOnSpawn = false
+    gui.Enabled = false
+    gui.Parent = CoreGui
+    
+    -- Main frame para sa dalawang button
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 220, 0, 90)
+    frame.Position = UDim2.new(0.5, -110, 0.5, -45)
+    frame.BackgroundColor3 = BLACK_BG
+    frame.BackgroundTransparency = 0.1
+    frame.BorderSizePixel = 0
+    frame.Active = true
+    frame.Draggable = true
+    frame.Parent = gui
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
+    local frameStroke = Instance.new("UIStroke", frame)
+    frameStroke.Color = Color3.fromRGB(255, 100, 100)
+    frameStroke.Thickness = 2
+    
+    -- Title
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, 0, 0, 30)
+    title.Position = UDim2.new(0, 0, 0, 5)
+    title.Text = "TP Ragdoll"
+    title.Font = Enum.Font.GothamBold
+    title.TextColor3 = Color3.new(1, 1, 1)
+    title.TextSize = 14
+    title.BackgroundTransparency = 1
+    title.Parent = frame
+    
+    -- TP 1 Button
+    local tp1Btn = Instance.new("TextButton")
+    tp1Btn.Size = UDim2.new(0.42, 0, 0, 35)
+    tp1Btn.Position = UDim2.new(0.05, 0, 0.45, 0)
+    tp1Btn.Text = "TP 1"
+    tp1Btn.Font = Enum.Font.GothamBold
+    tp1Btn.TextSize = 13
+    tp1Btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    tp1Btn.TextColor3 = Color3.new(1, 1, 1)
+    tp1Btn.AutoButtonColor = false
+    tp1Btn.Parent = frame
+    Instance.new("UICorner", tp1Btn).CornerRadius = UDim.new(0, 6)
+    
+    -- TP 2 Button
+    local tp2Btn = Instance.new("TextButton")
+    tp2Btn.Size = UDim2.new(0.42, 0, 0, 35)
+    tp2Btn.Position = UDim2.new(0.53, 0, 0.45, 0)
+    tp2Btn.Text = "TP 2"
+    tp2Btn.Font = Enum.Font.GothamBold
+    tp2Btn.TextSize = 13
+    tp2Btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    tp2Btn.TextColor3 = Color3.new(1, 1, 1)
+    tp2Btn.AutoButtonColor = false
+    tp2Btn.Parent = frame
+    Instance.new("UICorner", tp2Btn).CornerRadius = UDim.new(0, 6)
+    
+    -- Button hover effects
+    local function addHoverEffects(btn)
+        btn.MouseEnter:Connect(function()
+            TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(70, 70, 70)}):Play()
+        end)
+        btn.MouseLeave:Connect(function()
+            TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(40, 40, 40)}):Play()
+        end)
+    end
+    
+    addHoverEffects(tp1Btn)
+    addHoverEffects(tp2Btn)
+    
+    -- TP Function
+    local function move(pos)
+        local char = lp.Character
+        if char then
+            char:PivotTo(CFrame.new(pos))
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if hrp then 
+                hrp.AssemblyLinearVelocity = Vector3.new(0,0,0) 
+            end
+        end
+    end
+    
+    -- TP 1 Click
+    tp1Btn.MouseButton1Click:Connect(function()
+        if not TpRagdoll.Enabled then return end
+        move(tpCheckpointA)
+        task.wait(0.1)
+        move(tpCheckpointB1)
+        task.wait(0.1)
+        move(tpFinalPos1)
+        
+        -- Flash effect
+        tp1Btn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+        task.wait(0.1)
+        tp1Btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    end)
+    
+    -- TP 2 Click
+    tp2Btn.MouseButton1Click:Connect(function()
+        if not TpRagdoll.Enabled then return end
+        move(tpCheckpointA)
+        task.wait(0.1)
+        move(tpCheckpointB2)
+        task.wait(0.1)
+        move(tpFinalPos2)
+        
+        -- Flash effect
+        tp2Btn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+        task.wait(0.1)
+        tp2Btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    end)
+    
+    -- Apply saved positions
+    if savedPositions.Tp1X and savedPositions.Tp1Y then
+        frame.Position = UDim2.new(0, savedPositions.Tp1X, 0, savedPositions.Tp1Y)
+    end
+    
+    addBtnDrag(frame)
+    
+    TpRagdoll.Gui = gui
+    TpRagdoll.Tp1Btn = tp1Btn
+    TpRagdoll.Tp2Btn = tp2Btn
 end
 
 -- Menu Button
@@ -359,7 +507,7 @@ TabButtons["Combat"].TextColor3 = COLORS.TextActive
 Pages["Combat"].Visible = true
 
 -------------------------------------------------------------------------
--- AUTO WALK FUNCTIONS (may FLOAT)
+-- AUTO WALK FUNCTIONS
 -------------------------------------------------------------------------
 local function isCountdownNumber(text)
     local num = tonumber(text)
@@ -405,42 +553,12 @@ local function startMovement(mode)
     end
 end
 
--- ITO ANG FLOAT FUNCTION (kinuha mula sa script)
 local function updateWalking()
     local char = lp.Character
     if not char then return end
     local root = char:FindFirstChild("HumanoidRootPart")
     local hum = char:FindFirstChild("Humanoid")
     if not root or not hum then return end
-    
-    local currentVel = root.AssemblyLinearVelocity
-    
-    -- FLOAT FUNCTIONALITY (kinuha mula sa script)
-    if AutoWalk.Floating then
-        local raycastParams = RaycastParams.new()
-        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-        raycastParams.FilterDescendantsInstances = {char}
-        local raycastResult = workspace:Raycast(root.Position, Vector3.new(0, -50, 0), raycastParams)
-        if raycastResult then
-            local groundY = raycastResult.Position.Y
-            local targetY = groundY + 8
-            local currentY = root.Position.Y
-            local yDifference = targetY - currentY
-            if math.abs(yDifference) > 0.3 then
-                root.AssemblyLinearVelocity = Vector3.new(
-                    currentVel.X,
-                    yDifference * 15,
-                    currentVel.Z
-                )
-            else
-                root.AssemblyLinearVelocity = Vector3.new(
-                    currentVel.X,
-                    0,
-                    currentVel.Z
-                )
-            end
-        end
-    end
     
     -- Movement
     if AutoWalk.Mode ~= "none" then
@@ -504,23 +622,12 @@ local function createAutoWalkGUIs()
         Color3.fromRGB(255, 100, 100)
     )
     
-    -- FLOAT GUI
-    AutoWalk.FloatGui, AutoWalk.FloatBtn = createBlackButton(
-        "AutoFloat", 
-        "Float OFF", 
-        UDim2.new(0.8, -74, 0.6, 0),
-        Color3.fromRGB(100, 100, 255)
-    )
-    
     -- Apply saved positions
     if savedPositions.AutoRightX and savedPositions.AutoRightY then
         AutoWalk.RightBtn.Position = UDim2.new(0, savedPositions.AutoRightX, 0, savedPositions.AutoRightY)
     end
     if savedPositions.AutoLeftX and savedPositions.AutoLeftY then
         AutoWalk.LeftBtn.Position = UDim2.new(0, savedPositions.AutoLeftX, 0, savedPositions.AutoLeftY)
-    end
-    if savedPositions.AutoFloatX and savedPositions.AutoFloatY then
-        AutoWalk.FloatBtn.Position = UDim2.new(0, savedPositions.AutoFloatX, 0, savedPositions.AutoFloatY)
     end
     
     -- Right button click
@@ -611,29 +718,6 @@ local function createAutoWalkGUIs()
         end
     end)
     
-    -- FLOAT BUTTON CLICK (kinuha mula sa script)
-    AutoWalk.FloatBtn.MouseButton1Click:Connect(function()
-        if not AutoWalk.Enabled then return end
-        
-        AutoWalk.Floating = not AutoWalk.Floating
-        if AutoWalk.Floating then
-            AutoWalk.FloatBtn.Text = "Float ON"
-            AutoWalk.FloatBtn.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
-            print("Float ON")
-        else
-            AutoWalk.FloatBtn.Text = "Float OFF"
-            AutoWalk.FloatBtn.BackgroundColor3 = BLACK_BG
-            local char = lp.Character
-            if char then
-                local root = char:FindFirstChild("HumanoidRootPart")
-                if root then
-                    root.AssemblyLinearVelocity = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z)
-                end
-            end
-            print("Float OFF")
-        end
-    end)
-    
     -- Countdown detection
     local function onTextChanged(label)
         local text = label.Text
@@ -685,7 +769,6 @@ local function enableAutoWalk()
     end
     AutoWalk.RightGui.Enabled = true
     AutoWalk.LeftGui.Enabled = true
-    AutoWalk.FloatGui.Enabled = true
     
     -- Start heartbeat
     if AutoWalk.HeartbeatConn then
@@ -700,12 +783,10 @@ local function disableAutoWalk()
     AutoWalk.CurrentWaypoint = 1
     AutoWalk.WaitingForCountdownLeft = false
     AutoWalk.WaitingForCountdownRight = false
-    AutoWalk.Floating = false
     
     if AutoWalk.RightGui then
         AutoWalk.RightGui.Enabled = false
         AutoWalk.LeftGui.Enabled = false
-        AutoWalk.FloatGui.Enabled = false
     end
     
     if AutoWalk.HeartbeatConn then
@@ -723,6 +804,22 @@ local function disableAutoWalk()
     end
 end
 
+-- TP Ragdoll functions
+local function enableTpRagdoll()
+    TpRagdoll.Enabled = true
+    if not TpRagdoll.Gui then
+        createTpRagdollGUI()
+    end
+    TpRagdoll.Gui.Enabled = true
+end
+
+local function disableTpRagdoll()
+    TpRagdoll.Enabled = false
+    if TpRagdoll.Gui then
+        TpRagdoll.Gui.Enabled = false
+    end
+end
+
 -- Character added connection
 lp.CharacterAdded:Connect(function()
     task.wait(1)
@@ -730,15 +827,12 @@ lp.CharacterAdded:Connect(function()
     AutoWalk.CurrentWaypoint = 1
     AutoWalk.WaitingForCountdownLeft = false
     AutoWalk.WaitingForCountdownRight = false
-    AutoWalk.Floating = false
     
     if AutoWalk.RightBtn then
         AutoWalk.RightBtn.Text = "AutoRight"
         AutoWalk.LeftBtn.Text = "AutoLeft"
-        AutoWalk.FloatBtn.Text = "Float OFF"
         TweenService:Create(AutoWalk.RightBtn, TweenInfo.new(0.3), {BackgroundColor3 = BLACK_BG}):Play()
         TweenService:Create(AutoWalk.LeftBtn, TweenInfo.new(0.3), {BackgroundColor3 = BLACK_BG}):Play()
-        AutoWalk.FloatBtn.BackgroundColor3 = BLACK_BG
     end
 end)
 
@@ -1443,6 +1537,7 @@ AddToggle("Combat","Spd Set",false,function(v) if v then enableSpdSet() else dis
 AddToggle("Combat","Inf Jump",false,function(v) if v then enableInfJump() else disableInfJump() end end)
 AddToggle("Combat","Spin",false,function(v) Spin.Enabled=v; if v then enableSpin() else disableSpin() end end)
 AddToggle("Combat","Auto Walk",false,function(v) if v then enableAutoWalk() else disableAutoWalk() end end)
+AddToggle("Combat","TP Ragdoll",false,function(v) if v then enableTpRagdoll() else disableTpRagdoll() end end)
 AddToggle("Combat","Auto Medusa",false,function(v) end)
 
 AddToggle("Protect","Optimizer",false,function(v)
@@ -1585,7 +1680,9 @@ do
         if AutoWalk.RightBtn then 
             AutoWalk.RightBtn.Active=not locked
             AutoWalk.LeftBtn.Active=not locked
-            AutoWalk.FloatBtn.Active=not locked
+        end
+        if TpRagdoll.Gui then 
+            TpRagdoll.Gui.Enabled = TpRagdoll.Enabled and not locked
         end
         if SpinGUI.Btn then SpinGUI.Btn.Active=not locked end
         autoSave()
@@ -1614,7 +1711,9 @@ do
         if AutoWalk.RightBtn then
             AutoWalk.RightBtn.Position=UDim2.new(0.5,-74,0.6,0)
             AutoWalk.LeftBtn.Position=UDim2.new(0.2,-74,0.6,0)
-            AutoWalk.FloatBtn.Position=UDim2.new(0.8,-74,0.6,0)
+        end
+        if TpRagdoll.Gui then
+            TpRagdoll.Gui:FindFirstChildOfClass("Frame").Position = UDim2.new(0.5, -110, 0.5, -45)
         end
         if SafeFollow.btn then
             SafeFollow.btn.Position=UDim2.new(0.5,-74,0.8,0)
@@ -1703,9 +1802,8 @@ Menu.MouseButton1Click:Connect(function() MainFrame.Visible=not MainFrame.Visibl
 
 print("✓ Ivo Duels Loaded!")
 print("✓ Menu Button - kagaya ng Lock In GUI")
-print("✓ Auto Walk - Auto Left at Auto Right GUI")
-print("✓ FLOAT BUTTON - kasama na! (Float ON/OFF)")
-print("✓ FLOAT FUNCTION - gumagana! (lumilipad ng 8 studs above ground)")
+print("✓ Auto Walk - Auto Left at Auto Right GUI (magkahiwalay)")
+print("✓ TP Ragdoll - may sariling GUI (kagaya ng LSC ragdoll tp)")
 print("✓ Spd Set - may GUI na kagaya ng Lock In")
 print("✓ Spin GUI - black background")
 print("✓ Lock In GUI - black background")
